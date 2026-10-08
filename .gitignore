@@ -1,0 +1,4 @@
+/target/
+/conformance/results/
+__pycache__/
+.DS_Store

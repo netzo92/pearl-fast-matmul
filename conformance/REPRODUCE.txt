@@ -1,0 +1,33 @@
+Official CPU/plain-proof conformance experiment
+
+Upstream: https://github.com/pearl-research-labs/pearl
+Pinned revision: 2f8b770cac8f8b74be05c1fc51c2baeb76ce0701
+Compiler: rustc 1.93.1 (01f6ddf75 2026-02-11), stable-aarch64-apple-darwin
+Cargo: 1.93.1 (083ac5135 2025-12-15)
+Protocol: INT certificate V3 salted seed derivation.
+
+Run:
+  ./run.sh /private/tmp/pearl-official ./results
+
+If the checkout path is absent, the script downloads only required directories
+at the pinned revision. If present, it requires the exact revision and unchanged
+tracked source. It adds one experimental binary and builds using Pearl's locked
+dependencies; it does not change upstream verification code.
+
+Existing report.json and plain_*.bin were produced by the same source before
+rustfmt formatting. The original command was:
+  cargo run --offline --locked --release --bin grouping_conformance -- /private/tmp/pearl-grouping-conformance
+with working directory /private/tmp/pearl-official/zk-pow.
+
+Two deterministic h8,w32,r128,k2048 fixtures, raw B=0, respectively raw A=0
+and nonzero deterministic int7 raw A. Actual header/config job keys, official
+Merkle trees/openings and salted seeds. Grouping and noise PRNG implemented
+locally. Exact output matches the official CPU implementation. Each fixture:
+81920 noise entries and all4096 prefix entries compared; state/hash equality;
+actual official plain verification acceptance; changed raw byte rejection;
+zero-target rejection. Plain proofs are serialized with upstream bincode.
+Header metadata and full roots/seeds/hashes are in report.json.
+
+The easiest fixture threshold 0x207fffff saturates the adjusted target; this
+establishes functional conformance, not proof of an advantage at network
+difficulty. No ZK certificate, live-network submission or GPU speed claim.
