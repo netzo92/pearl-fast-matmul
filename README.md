@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/009-batch-and-conformance.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/011-metal-prefix-benchmark.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -14,6 +14,18 @@ For committed raw `B = 0`, the noise has the form `B'[s,j] = V[p_s,j] - V[q_s,j]
 - **No demonstrated speed advantage against the stronger CPU baseline.** Packing the direct method's inputs removed the apparent advantage over the original direct loop.
 
 The verifier fixtures use an intentionally easy threshold. They establish functional compatibility with the pinned CPU plain-proof implementation, not a mined block, a verified ZK certificate, or network acceptance. No GPU or end-to-end mining advantage is established.
+
+## Local GPU version
+
+Both direct and grouped prefix kernels now run on this Mac’s M4 GPU. They match **5,259,264 reference prefix entries and 1,284 tile hash states** across 12 commitment-derived fixtures.
+
+For the largest tested batch, the prepared grouped kernel took **1.21ms versus 1.51ms** for the tiled direct GPU kernel. Including grouping preparation and command overhead gave **1.75ms versus 1.78ms**: effectively tied given the sample variation. Smaller batches were slower overall. This is a local prototype comparison, with no established mining advantage. [Full methodology and limits](notes/011-metal-prefix-benchmark.md) · [Raw GPU samples](results/metal-m4.json).
+
+```sh
+bash gpu/run_metal.sh
+```
+
+The earlier narrow CPU controls remain faster than CPU grouping: 2.28ms direct versus 4.61ms grouped. No cloud resources have been created.
 
 ## CPU results
 

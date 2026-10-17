@@ -163,6 +163,20 @@ fn main() {
             0xd7, 0x17, 0xec, 0xcf
         ]
     );
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|arg| arg == "--export-metal") {
+        let dir = args.get(pos + 1).expect("usage: --export-metal DIR");
+        batched_grouping::export_metal(std::path::Path::new(dir)).expect("export Metal fixtures");
+        return;
+    }
+    if std::env::args().any(|arg| arg == "--width-stats") {
+        batched_grouping::run_width_stats();
+        return;
+    }
+    if std::env::args().any(|arg| arg == "--narrow-grouping") {
+        batched_grouping::run_narrow();
+        return;
+    }
     if std::env::args().any(|arg| arg == "--batch-grouping") {
         batched_grouping::run();
         return;

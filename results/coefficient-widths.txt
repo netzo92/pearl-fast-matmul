@@ -1,0 +1,10 @@
+nonzero_a=false fixtures=8 m=128 n=32 r=128 k=2048: every prefix/state/hash matches direct packed
+coefficients=1740288 outside_i8=7193 outside_pct=0.413322 g_range=-270..294 residual_range=-142..167 residual_outside_i8=6 total_extra_i8_terms=7199 max_row_residuals=5
+d_range=100..115 basis_total=13596 average_d=106.218750 average_pad16=112.250000 average_pad32=128.000000
+scalar_mults_direct=67108864 grouped_wide=55689216 clipped_plus_wide_residual=55919392 clipped_plus_byte_residual=55919584; saved_wide_residual_pct=16.673613 saved_byte_residual_pct=16.673326
+padded32_primary_plus_wide_residual_mults=67339040 (direct=67108864)
+nonzero_a=true fixtures=8 m=128 n=32 r=128 k=2048: every prefix/state/hash matches direct packed
+coefficients=1740288 outside_i8=116794 outside_pct=6.711188 g_range=-439..419 residual_range=-311..292 residual_outside_i8=2316 total_extra_i8_terms=119125 max_row_residuals=20
+d_range=100..115 basis_total=13596 average_d=106.218750 average_pad16=112.250000 average_pad32=128.000000
+scalar_mults_direct=67108864 grouped_wide=55689216 clipped_plus_wide_residual=59426624 clipped_plus_byte_residual=59501216; saved_wide_residual_pct=11.447430 saved_byte_residual_pct=11.336279
+padded32_primary_plus_wide_residual_mults=70846272 (direct=67108864)

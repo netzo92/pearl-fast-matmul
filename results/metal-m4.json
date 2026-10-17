@@ -1,0 +1,234 @@
+{
+  "cases": [
+    {
+      "direct_gpu_us": [
+        469.3749360740185,
+        464.0414845198393,
+        174.45837147533894,
+        178.12498845160007,
+        183.08334983885288,
+        170.83343118429184,
+        175.2499956637621
+      ],
+      "direct_kernel_gpu_us": [
+        492.69997980445623,
+        367.9624991491437,
+        161.40833031386137,
+        209.47500597685575,
+        165.937514975667,
+        170.21249514073133,
+        213.6999974027276
+      ],
+      "direct_wall_us": [
+        692.25,
+        684.75,
+        618.5,
+        802,
+        657.375,
+        363.709,
+        458.084
+      ],
+      "grouped_gpu_us": [
+        1236.416632309556,
+        667.2916933894157,
+        243.49987506866455,
+        247.25007824599743,
+        252.79168039560318,
+        242.83328093588352,
+        243.04166436195374
+      ],
+      "grouped_host_plan_us": [
+        130.917,
+        157.958,
+        175.791,
+        152.625,
+        130.834,
+        156.625,
+        128
+      ],
+      "grouped_kernel_gpu_us": [
+        680.3000112995505,
+        757.2124944999814,
+        260.15001349151134,
+        235.25001015514135,
+        232.40000009536743,
+        257.08749890327454,
+        239.8374956101179
+      ],
+      "grouped_wall_us": [
+        2210.792,
+        1215.333,
+        822.291,
+        739.167,
+        978,
+        599.416,
+        579.5
+      ],
+      "m": 8,
+      "median_direct_kernel_gpu_us": 209.47500597685575,
+      "median_direct_wall_us": 657.375,
+      "median_grouped_kernel_gpu_us": 257.08749890327454,
+      "median_grouped_wall_us": 822.291,
+      "n": 32,
+      "name": "m8-n32-id0-a0",
+      "tickets": 1,
+      "wall_speedup": 0.7994432627865318
+    },
+    {
+      "direct_gpu_us": [
+        715.1667959988117,
+        772.7500051259995,
+        691.0834927111864,
+        668.4998515993357,
+        580.8752030134201,
+        587.791670113802,
+        582.4165418744087
+      ],
+      "direct_kernel_gpu_us": [
+        679.8874819651246,
+        674.675009213388,
+        644.4375030696392,
+        629.5874947682023,
+        567.6666740328074,
+        551.7874844372272,
+        588.4583340957761
+      ],
+      "direct_wall_us": [
+        1305.708,
+        1154.25,
+        975.792,
+        1014.167,
+        946.959,
+        884.792,
+        884.584
+      ],
+      "grouped_gpu_us": [
+        685.499981045723,
+        594.4166332483292,
+        594.1251292824745,
+        725.1249626278877,
+        619.62497420609,
+        527.4999421089888,
+        520.4582121223211
+      ],
+      "grouped_host_plan_us": [
+        152.458,
+        164.416,
+        182.459,
+        195.084,
+        217,
+        234.375,
+        274.292
+      ],
+      "grouped_kernel_gpu_us": [
+        581.4624950289726,
+        564.512494020164,
+        571.2124984711409,
+        523.1708288192749,
+        479.7500092536211,
+        515.7750099897385,
+        425.42917653918266
+      ],
+      "grouped_wall_us": [
+        1136.917,
+        1435.5,
+        1106.75,
+        1312.167,
+        1804.833,
+        1133.5,
+        1581.25
+      ],
+      "m": 128,
+      "median_direct_kernel_gpu_us": 629.5874947682023,
+      "median_direct_wall_us": 975.792,
+      "median_grouped_kernel_gpu_us": 523.1708288192749,
+      "median_grouped_wall_us": 1312.167,
+      "n": 128,
+      "name": "m128-n128-id0-a0",
+      "tickets": 64,
+      "wall_speedup": 0.7436492458658083
+    },
+    {
+      "direct_gpu_us": [
+        1813.8750456273556,
+        1652.5418031960726,
+        1440.6668487936258,
+        1440.9166760742664,
+        1579.041825607419,
+        1495.1666817069054,
+        1496.4998699724674
+      ],
+      "direct_kernel_gpu_us": [
+        1881.674979813397,
+        1564.999995753169,
+        1523.120841011405,
+        1459.2541614547372,
+        1458.6374862119555,
+        1502.1249884739518,
+        1506.8041859194636
+      ],
+      "direct_wall_us": [
+        2128.708,
+        1884.333,
+        1725.959,
+        1681.791,
+        2036.792,
+        1768.792,
+        1784.167
+      ],
+      "grouped_gpu_us": [
+        1780.3332302719355,
+        1428.5834040492773,
+        1321.0000470280647,
+        1237.4999932944775,
+        1302.374992519617,
+        1242.5000313669443,
+        1249.8749420046806
+      ],
+      "grouped_host_plan_us": [
+        209.458,
+        250.208,
+        185.416,
+        143.458,
+        152.125,
+        166.5,
+        165.708
+      ],
+      "grouped_kernel_gpu_us": [
+        1463.2083475589752,
+        1380.2750036120415,
+        1209.7874889150262,
+        1200.7208308205009,
+        1179.2750097811222,
+        1203.8375018164515,
+        1239.2916716635227
+      ],
+      "grouped_wall_us": [
+        2845.125,
+        2020.25,
+        1768.541,
+        1750.25,
+        1714,
+        1663.833,
+        1683.458
+      ],
+      "m": 512,
+      "median_direct_kernel_gpu_us": 1506.8041859194636,
+      "median_direct_wall_us": 1784.167,
+      "median_grouped_kernel_gpu_us": 1209.7874889150262,
+      "median_grouped_wall_us": 1750.25,
+      "n": 128,
+      "name": "m512-n128-id0-a0",
+      "tickets": 256,
+      "wall_speedup": 1.019378374517926
+    }
+  ],
+  "checked_prefix_entries": 5259264,
+  "checked_tickets": 1284,
+  "device": "Apple M4",
+  "fixtures": 12,
+  "os": "Version 26.3.1 (Build 25D2128)",
+  "scope": "Metal integer prototypes. Both jobs start from A', V and signed B selections. Includes direct chunk-packed B materialization; grouped graph/CSR construction, GPU grouping and contrasts; both write every prefix. Job wall includes encoding and waiting. Kernel-only GPU timings exclude preparation. Metal buffer allocation, shader compilation, raw commitments, A noising, final hashing and proof generation excluded. No official GPU miner or network comparison.",
+  "compiler": "Apple Swift 6.2.4; swiftc -O; runtime Metal compilation",
+  "methodology": "Seven alternating one-job wall samples; kernel-only GPU samples average ten dispatches per command. Correctness checks use both A=0 and nonzero A; timing uses id0,A=0 for each shape."
+}

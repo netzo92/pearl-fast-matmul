@@ -4,6 +4,21 @@ use super::{
     sparse_pairs, uniform_rows, Key, K, R,
 };
 use std::{hint::black_box, time::Instant};
+#[path = "metal_fixtures.rs"]
+mod metal_fixtures;
+pub fn export_metal(dir: &std::path::Path) -> std::io::Result<()> {
+    metal_fixtures::export(dir)
+}
+#[path = "narrow_kernel.rs"]
+mod narrow_kernel;
+#[path = "width_stats.rs"]
+mod width_stats;
+pub fn run_width_stats() {
+    width_stats::run();
+}
+pub fn run_narrow() {
+    narrow_kernel::run();
+}
 
 const H: usize = 8;
 const W: usize = 32;
