@@ -43,9 +43,10 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
     for (int c=0;c<k/Rank;++c) {
         if (Grouped && Inline) {
             if (tid<Rows) counts[tid]=0;
-            for (int x=tid;x<Rows*Rank;x+=128) {
-                int row=x/Rank,t=x%Rank,i=row_base+row;
-                raw[row*Pitch+t]=i<m ? a[i*k+c*Rank+t] : 0;
+            for (int x=tid;x<Rows*(Rank/16);x+=128) {
+                int row=x/(Rank/16),t=(x%(Rank/16))*16,i=row_base+row;
+                uint4 value=i<m ? *reinterpret_cast<const uint4*>(&a[i*k+c*Rank+t]) : make_uint4(0,0,0,0);
+                *reinterpret_cast<uint4*>(&raw[row*Pitch+t])=value;
             }
             __syncthreads();
             for (int x=tid;x<Rows*Rank;x+=128) {
@@ -65,14 +66,17 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
                 }
             }
         } else {
-            for (int x=tid;x<Rows*Rank;x+=128) {
-                int row=x/Rank,t=x%Rank,i=row_base+row;
-                sa[row*Pitch+t]= i>=m ? 0 : (Grouped ? a[(c*m+i)*Rank+t] : a[i*k+c*Rank+t]);
+            for (int x=tid;x<Rows*(Rank/16);x+=128) {
+                int row=x/(Rank/16),t=(x%(Rank/16))*16,i=row_base+row;
+                const int8_t* source=Grouped ? &a[(c*m+i)*Rank+t] : &a[i*k+c*Rank+t];
+                uint4 value=i<m ? *reinterpret_cast<const uint4*>(source) : make_uint4(0,0,0,0);
+                *reinterpret_cast<uint4*>(&sa[row*Pitch+t])=value;
             }
         }
-        for (int x=tid;x<Cols*Rank;x+=128) {
-            int col=x/Rank,t=x%Rank,j=col_base+col;
-            sb[col*Pitch+t]=j<n ? packed_b[(c*n+j)*Rank+t] : 0;
+        for (int x=tid;x<Cols*(Rank/16);x+=128) {
+            int col=x/(Rank/16),t=(x%(Rank/16))*16,j=col_base+col;
+            uint4 value=j<n ? *reinterpret_cast<const uint4*>(&packed_b[(c*n+j)*Rank+t]) : make_uint4(0,0,0,0);
+            *reinterpret_cast<uint4*>(&sb[col*Pitch+t])=value;
         }
         __syncthreads();
         int width=Grouped && Trim ? ((int(dims[c])+15)/16)*16 : Rank;
