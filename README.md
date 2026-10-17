@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/017-fused-mma16-h100.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/018-commitment-seed-search.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -43,6 +43,20 @@ A custom fused direct kernel improves the local matrix-stage control from about 
 All seven methods pass **44 fixtures, 183,517,184 prefix entries and 44,804 tile states per method**, including a separate check of the state-only timed path. Scalar-load and graph-staging experiments are preserved alongside the retained vector-load implementation. The temporary VM and disk were deleted; estimated compute for the session was about $1.10, excluding other charges and final billing adjustments.
 
 [Methods and results](notes/017-fused-mma16-h100.md) · [Raw samples](results/cuda-mma16-h100.json) · [CUDA code](gpu/cuda/README.md).
+
+## Searching committed inputs for cheaper graphs
+
+We tested **262,144 near-zero B commitments** across four fixed job keys, looking for noise graphs that remove more 16-wide tensor-core steps. Selecting a favorable graph removes only **0.89–1.79% more dense MMA work** than the zero-B baseline in this search. These are arithmetic counts, not new GPU timings. The local search took about two minutes and launched no cloud resources.
+
+Selected inputs reproduce **393,216 prefix entries and 96 tile states/hashes** across fresh A commitments. Omitting the sparse nonzero-B correction fails 32 negative controls. This does not establish new official verifier or network acceptance. The result does not justify another H100 run of the current grouped kernel, which remains slower than direct in the existing measurements.
+
+[Method and limitations](notes/018-commitment-seed-search.md) · [Summary](results/seed-search.json) · [Complete compressed trial logs](results/seed-search-raw/).
+
+```sh
+cargo run --offline --locked --release -- --seed-search /tmp/pearl-seed-search 65536
+python3 experiments/analyze_seed_search.py /tmp/pearl-seed-search \
+  --source-dir . --output /tmp/pearl-seed-search-summary.json
+```
 
 ## First CUDA result on H100
 
@@ -129,4 +143,4 @@ Using [Pearl's illustrative 10% incremental-cost assumption](https://pearlresear
 
 ## Next question
 
-Can complete grouped useless mining beat the **incremental cost of adding mining to useful inference**, per expected accepted reward, on the same hardware? No predetermined speedup factor is required. The current matrix-stage measurements do not measure that incremental cost. [Cost model and next measurement](notes/013-inference-overhead-threshold.md).
+Can structure on both sides, or a way to compute the exact required XOR states without evaluating every prefix entry, save substantially more work than one-sided graph grouping? [The latest search](notes/018-commitment-seed-search.md) found only small additional arithmetic savings. An eventual mining claim must also pass the [complete reward-normalized cost comparison](notes/013-inference-overhead-threshold.md).

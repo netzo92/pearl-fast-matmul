@@ -2,6 +2,7 @@
 //! This does not construct or verify a network certificate.
 mod batched_grouping;
 mod grouped_noise;
+mod seed_search;
 
 const R: usize = 128;
 const K: usize = 2048;
@@ -164,6 +165,16 @@ fn main() {
         ]
     );
     let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|arg| arg == "--seed-search") {
+        let dir = args
+            .get(pos + 1)
+            .expect("usage: --seed-search DIR [TRIALS_PER_JOB]");
+        let trials = args
+            .get(pos + 2)
+            .map_or(8192, |s| s.parse().expect("integer trial count"));
+        seed_search::run(std::path::Path::new(dir), trials).expect("seed search");
+        return;
+    }
     if let Some(pos) = args.iter().position(|arg| arg == "--export-metal-cached") {
         let dir = args.get(pos + 1).expect("usage: --export-metal-cached DIR");
         batched_grouping::export_cached_metal(std::path::Path::new(dir))

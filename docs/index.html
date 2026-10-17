@@ -27,6 +27,18 @@
       </div>
     </section>
 
+    <section class="section wrap" id="seed-search" aria-labelledby="seed-search-title">
+      <div class="section-heading"><h2 id="seed-search-title">Searching for cheaper inputs</h2><p>We tested 262,144 mostly zero B matrices, each with a different commitment. Favorable noise graphs remove only 0.89–1.79% more dense tensor work than the zero-B baseline. These are operation counts, not GPU speed measurements.</p></div>
+      <div class="table-scroll"><table class="data-table">
+        <caption>65,536 candidates per fixed job key. Sum of padded inner dimensions across all 16 chunks; lower is less dense MMA work.</caption>
+        <thead><tr><th scope="col">Job key</th><th scope="col">Zero B</th><th scope="col">Best selected B</th><th scope="col">Extra work removed</th></tr></thead>
+        <tbody><tr><th scope="row">0</th><td>1792</td><td>1760</td><td>1.79%</td></tr><tr><th scope="row">1</th><td>1792</td><td>1776</td><td>0.89%</td></tr><tr><th scope="row">2</th><td>1792</td><td>1760</td><td>1.79%</td></tr><tr><th scope="row">3</th><td>1792</td><td>1760</td><td>1.79%</td></tr></tbody>
+      </table></div>
+      <p class="results-note">Every candidate starts from an actual committed B input; we do not choose arbitrary noise seeds. The selected constructions match 393,216 checked prefix entries and 96 tile states and hashes after the required sparse-B correction. No new official verifier or network check was run.</p>
+      <p class="results-note">The local search took about two minutes, with no cloud resources launched. This small additional arithmetic saving does not provide a reason to rerun the current grouped kernel on H100. It is not an impossibility result for other input constructions or algorithms.</p>
+      <p class="data-links"><a href="data/seed-search.json">Search summary and distributions</a><a href="https://github.com/netzo92/pearl-fast-matmul/tree/main/results/seed-search-raw">Complete trial logs</a><a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/018-commitment-seed-search.md">Method and limits</a></p>
+    </section>
+
     <section class="section wrap" id="gpu-results" aria-labelledby="gpu-title">
       <div class="section-heading"><h2 id="gpu-title">Fused H100 results</h2><p>The fused direct kernel improves our local control from about 92 µs to 50 µs per candidate. Grouping still takes 153–155 µs: approximately three times longer than the faster direct method.</p></div>
       <div class="table-scroll"><table class="data-table">

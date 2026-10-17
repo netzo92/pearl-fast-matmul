@@ -1,0 +1,35 @@
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running `target/release/pearl_fast_matmul --seed-search run-65536 65536`
+job 0, 1 candidates: MMA16 1792 -> 1824; raw inner 1696 -> 1712; search CPU 0.001s
+job 0, 16 candidates: MMA16 1792 -> 1792; raw inner 1696 -> 1682; search CPU 0.016s
+job 0, 256 candidates: MMA16 1792 -> 1776; raw inner 1696 -> 1677; search CPU 0.137s
+job 0, 1024 candidates: MMA16 1792 -> 1776; raw inner 1696 -> 1668; search CPU 0.479s
+job 0, 4096 candidates: MMA16 1792 -> 1776; raw inner 1696 -> 1653; search CPU 1.831s
+job 0, 8192 candidates: MMA16 1792 -> 1776; raw inner 1696 -> 1653; search CPU 3.657s
+job 0, 32768 candidates: MMA16 1792 -> 1760; raw inner 1696 -> 1653; search CPU 14.780s
+job 0, 65536 candidates: MMA16 1792 -> 1760; raw inner 1696 -> 1652; search CPU 29.544s
+job 1, 1 candidates: MMA16 1792 -> 1792; raw inner 1700 -> 1693; search CPU 0.000s
+job 1, 16 candidates: MMA16 1792 -> 1792; raw inner 1700 -> 1685; search CPU 0.011s
+job 1, 256 candidates: MMA16 1792 -> 1776; raw inner 1700 -> 1673; search CPU 0.140s
+job 1, 1024 candidates: MMA16 1792 -> 1776; raw inner 1700 -> 1665; search CPU 0.544s
+job 1, 4096 candidates: MMA16 1792 -> 1776; raw inner 1700 -> 1663; search CPU 1.953s
+job 1, 8192 candidates: MMA16 1792 -> 1776; raw inner 1700 -> 1659; search CPU 3.826s
+job 1, 32768 candidates: MMA16 1792 -> 1776; raw inner 1700 -> 1658; search CPU 15.010s
+job 1, 65536 candidates: MMA16 1792 -> 1776; raw inner 1700 -> 1644; search CPU 30.101s
+job 2, 1 candidates: MMA16 1792 -> 1792; raw inner 1692 -> 1710; search CPU 0.000s
+job 2, 16 candidates: MMA16 1792 -> 1792; raw inner 1692 -> 1684; search CPU 0.007s
+job 2, 256 candidates: MMA16 1792 -> 1776; raw inner 1692 -> 1673; search CPU 0.117s
+job 2, 1024 candidates: MMA16 1792 -> 1776; raw inner 1692 -> 1672; search CPU 0.474s
+job 2, 4096 candidates: MMA16 1792 -> 1760; raw inner 1692 -> 1663; search CPU 1.912s
+job 2, 8192 candidates: MMA16 1792 -> 1760; raw inner 1692 -> 1653; search CPU 3.809s
+job 2, 32768 candidates: MMA16 1792 -> 1760; raw inner 1692 -> 1653; search CPU 15.298s
+job 2, 65536 candidates: MMA16 1792 -> 1760; raw inner 1692 -> 1653; search CPU 30.571s
+job 3, 1 candidates: MMA16 1792 -> 1792; raw inner 1690 -> 1695; search CPU 0.000s
+job 3, 16 candidates: MMA16 1792 -> 1792; raw inner 1690 -> 1683; search CPU 0.007s
+job 3, 256 candidates: MMA16 1792 -> 1792; raw inner 1690 -> 1670; search CPU 0.118s
+job 3, 1024 candidates: MMA16 1792 -> 1776; raw inner 1690 -> 1669; search CPU 0.470s
+job 3, 4096 candidates: MMA16 1792 -> 1776; raw inner 1690 -> 1660; search CPU 1.877s
+job 3, 8192 candidates: MMA16 1792 -> 1760; raw inner 1690 -> 1660; search CPU 3.769s
+job 3, 32768 candidates: MMA16 1792 -> 1760; raw inner 1690 -> 1659; search CPU 15.024s
+job 3, 65536 candidates: MMA16 1792 -> 1760; raw inner 1690 -> 1651; search CPU 30.419s
+Report: run-65536/screen.json

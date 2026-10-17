@@ -6,6 +6,7 @@ on:
     paths:
       - 'gpu/cuda/**'
       - 'src/**'
+      - 'experiments/analyze_seed_search.py'
       - 'Cargo.*'
       - '.github/workflows/cuda-build.yml'
 
@@ -47,6 +48,11 @@ jobs:
         run: |
           python gpu/cuda/benchmark.py /tmp/pearl-cuda-fixtures --validate-only \
             --plan-checker /tmp/pearl-plan-check --output /tmp/cuda-host-check.json
+      - name: Check commitment search against exact direct prefixes
+        run: |
+          cargo run --locked --release -- --seed-search /tmp/pearl-seed-smoke 16
+          python experiments/analyze_seed_search.py /tmp/pearl-seed-smoke \
+            --source-dir . --output /tmp/pearl-seed-smoke-summary.json
       - uses: actions/upload-artifact@v4
         with:
           name: cuda-host-conformance
