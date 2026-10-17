@@ -43,6 +43,16 @@ PYTHON=/tmp/pearl-cuda-env/bin/python bash gpu/cuda/run.sh /tmp/cuda-host-check.
 
 For the smaller original 12-fixture set, use `--export-metal` instead of `--export-metal-cached`, then invoke `benchmark.py --validate-only`. Host validation also compiles the same C++ planning code used by CUDA and checks it against Python and Rust when `--plan-checker` is supplied.
 
+## Recorded H100 result
+
+On H100 80GB, the largest shape takes about **291 µs grouped versus 91 µs direct**, including B preparation amortized over four candidates. Grouping loses all eleven paired rounds in every tested case. All three paths pass the prefix/state checks. [Results and limits](../../notes/016-cuda-feasibility.md) · [Raw samples](../../results/cuda-h100.json).
+
+For GCP serial collection, the startup script emits compressed chunks with a SHA256 of the original JSON. Recover them with:
+
+```sh
+python3 gpu/cuda/collect_serial.py serial.log report.json
+```
+
 ## Interpretation
 
 Reports retain every timing sample, device/runtime information and source/fixture SHA256 hashes. `wall_us_per_candidate_including_amortized_b` is the primary measurement. CUDA events report elapsed stream span, which can include host launch/copy gaps; this is not active GPU execution time.

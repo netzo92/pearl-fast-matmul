@@ -29,9 +29,12 @@ venv/bin/python -m pip install -r source/gpu/cuda/requirements.txt
 PYTHON=/opt/pearl-benchmark/venv/bin/python \
     timeout 900s bash source/gpu/cuda/run.sh /opt/pearl-benchmark/report.json
 venv/bin/python - <<'PY'
-import base64, hashlib
+import base64, gzip, hashlib
 from pathlib import Path
 raw = Path('/opt/pearl-benchmark/report.json').read_bytes()
 print('PEARL_REPORT_SHA256=' + hashlib.sha256(raw).hexdigest(), flush=True)
-print('PEARL_REPORT_BASE64=' + base64.b64encode(raw).decode(), flush=True)
+encoded = base64.b64encode(gzip.compress(raw, mtime=0)).decode()
+chunks = [encoded[i:i+4000] for i in range(0, len(encoded), 4000)]
+for i, chunk in enumerate(chunks):
+    print(f'PEARL_REPORT_CHUNK={i}/{len(chunks)}:{chunk}', flush=True)
 PY

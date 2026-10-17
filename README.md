@@ -34,13 +34,22 @@ bash gpu/run_metal.sh results/metal-cached-m4.json cached
 
 The [earlier uncached GPU experiment](notes/011-metal-prefix-benchmark.md) was effectively tied after preparation. Its benchmark remains available with `bash gpu/run_metal.sh`.
 
-The earlier narrow CPU controls remain faster than CPU grouping: 2.28ms direct versus 4.61ms grouped. No cloud resources have been created.
+The earlier narrow CPU controls remain faster than CPU grouping: 2.28ms direct versus 4.61ms grouped. These CPU checks ran locally; the H100 cloud run is recorded below.
 
-## CUDA feasibility version
+## CUDA result on H100
 
-The [CUDA benchmark](gpu/cuda/README.md) compiles for H100/SM90 and has passed Linux host conformance. All 32 cached fixtures pass host checks for **178,257,920 prefix entries and 43,520 tile states**, including exact correction of coefficients outside INT8. It compares grouped cuBLAS with two direct INT8 cuBLAS controls, including a packing control, and checks both full prefixes and the state-only timed path when run on a GPU.
+The [CUDA port](gpu/cuda/README.md) runs correctly on H100, but **grouping is slower than the INT8 cuBLAS control**. At output shape 2048 × 512, including B preparation amortized across four candidates:
 
-**No NVIDIA execution or timing result is recorded yet.** GCP quota for one Spot H100 has been approved for a short run. This is a matrix-stage experiment, not a complete miner or a profit measurement. [Method and checks](notes/016-cuda-feasibility.md) · [Host report](results/cuda-cached-host-conformance.json).
+| Synthetic job key | Faster direct | Grouped | Grouped throughput / direct |
+| --- | ---: | ---: | ---: |
+| 0 | 90.84 µs | 290.53 µs | 0.313× |
+| 1 | 91.06 µs | 291.24 µs | 0.313× |
+
+Grouping loses all 11 paired rounds in all eight tested cases. Even excluding B preparation, the largest candidate stage takes about 230 µs grouped versus 87 µs direct. The M4 speedup does not transfer to this implementation.
+
+All three CUDA methods match **178,257,920 prefix entries and 43,520 tile states** across 32 fixtures; the state-only timed path is also checked. Exact sparse correction preserves coefficients outside INT8. This is a matrix-stage comparison, not complete mining or a profit measurement, and cuBLAS is not Pearl's fused mining kernel. [Method and results](notes/016-cuda-feasibility.md) · [Raw H100 samples](results/cuda-h100.json).
+
+The temporary GCP VM and its boot disk were deleted after collection. Estimated compute cost was below $1; final billing was not checked.
 
 ## CPU results
 
@@ -100,6 +109,8 @@ python3 -m http.server 8000 --directory docs
 Earlier notes preserve the conclusions reached at each step and link to the current result. This repository was extracted from [netzo92/math](https://github.com/netzo92/math).
 
 ## Conclusion
+
+The tested H100 implementation is about 3.2× slower than the direct cuBLAS control at the largest shape. We have no demonstrated NVIDIA mining advantage or higher dollars/hour.
 
 Using [Pearl's illustrative 10% incremental-cost assumption](https://pearlresearch.ai/research/int-whitepaper), a hypothetical **complete-cost** speedup of 1.28x would leave useless mining at about 78% of the reference cost, versus 10% for adding mining to existing inference: roughly 7.8x as expensive. Our 1.28x measurement covers only the local matrix stage, so it does not establish that complete-cost ratio. The estimate gives a conditional threshold; it does not demonstrate an exploit. [Calculation and ELI5](notes/013-inference-overhead-threshold.md#conclusion-using-pearls-own-estimate).
 

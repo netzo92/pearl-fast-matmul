@@ -23,11 +23,36 @@ Correctness runs write every prefix matrix and compare it with the Rust direct r
 
 The larger local validation was rerun with NumPy 2.4.2, which provides a Python 3.14 wheel. The initial NumPy 2.2.6 build produced a testing-library failure on that interpreter. The dependency now pins 2.4.2; this does not change CUDA arithmetic.
 
-## GPU execution
+## H100 execution and result
 
-No NVIDIA execution or CUDA timing result has been recorded. Existing accessible GCP projects with Compute Engine enabled have global GPU quota zero. Requests for a global allowance of one GPU and one Spot H100 in `us-central1` were submitted for the short benchmark. Quota requests create neither VMs nor reservations. Both requests were approved to one GPU. The run remains subject to available capacity; no VM has been created.
+The benchmark ran on **NVIDIA H100 80GB HBM3**, compute capability 9.0, CUDA runtime 12.9, cuBLAS 12.9.0, in a GCP `a3-highgpu-1g` Spot VM. Source revision: `7b367270bda76c52e52d20143546ed85208e5b41`. The JSON was created at 2026-10-17 07:40:20 UTC. [Raw report](../results/cuda-h100.json), SHA256 `93d8f2765a516439543f9b7ec69360e7d09d8d48f1ba8cbed7c972076c9abf6d`.
 
-The prepared [GCP startup script](../gpu/cuda/gcp-startup.sh) requires an exact source revision, uses a CUDA-ready image, compiles the benchmark and generates its fixtures, then emits the report and its SHA256 into the serial log. It performs no pool or blockchain submission. Any launch must use an enforced 30-minute run limit with instance termination action DELETE and an automatically deleted boot disk. The script's benchmark phase also has a 15-minute timeout. This bounds runtime rather than guaranteeing a particular bill.
+All three methods passed GPU comparisons for every prefix and tile state across **32 fixtures, 178,257,920 prefix entries and 43,520 tile states per method**. The state-only timed path was checked separately for each method and candidate. These are local GPU correctness checks, not network-accepted proofs.
+
+Median wall microseconds per candidate, including B preparation amortized across four distinct A candidates:
+
+| Output | Job key | Faster direct | Grouped | Grouped throughput / direct |
+| --- | ---: | ---: | ---: | ---: |
+| 128 × 128 | 0 | 16.67 µs | 79.21 µs | 0.211× |
+| 128 × 128 | 1 | 16.98 µs | 80.00 µs | 0.212× |
+| 512 × 128 | 0 | 18.30 µs | 90.12 µs | 0.203× |
+| 512 × 128 | 1 | 18.39 µs | 92.01 µs | 0.200× |
+| 512 × 512 | 0 | 26.03 µs | 113.26 µs | 0.230× |
+| 512 × 512 | 1 | 26.05 µs | 116.74 µs | 0.223× |
+| 2048 × 512 | 0 | 90.84 µs | 290.53 µs | 0.313× |
+| 2048 × 512 | 1 | 91.06 µs | 291.24 µs | 0.313× |
+
+**Grouping loses all 11 paired rounds in all eight cases.** At the largest shape it takes about **291 µs versus 91 µs**, approximately **3.2 times longer**. The unpacked direct cuBLAS control is faster than the packed direct control in every case.
+
+This is not solely B planning overhead. At 2048 × 512, median candidate execution excluding B preparation is about **229–230 µs grouped versus 87 µs direct**. Median B preparation is about 243–247 µs grouped versus 15.6 µs direct, amortized over four candidates. The candidate-only result remains about 2.6 times slower even if B preparation is ignored. Medians of separate components need not sum to the median total.
+
+Both dense methods still execute inner dimension 128; the grouped path additionally runs A grouping and residual correction. These structural costs are present in the implementation. No profiler breakdown was collected to assign a measured fraction of runtime to each cause. The M4 1.28× advantage does not transfer to this H100 implementation.
+
+## Cloud run and collection
+
+Global quota for one GPU and regional quota for one Spot H100 were requested and approved. The temporary VM had a 30-minute maximum runtime, termination action DELETE and an automatically deleted boot disk. No inference API, pool or blockchain was contacted. The benchmark completed about 90 seconds after boot; the VM was deleted after collecting the report. Runtime was a few minutes, giving an estimated compute cost below $1 at the listed ~$6.31/hour Spot rate; this is not a final billing statement.
+
+The first serial transfer attempted one long base64 line, exceeding the guest metadata runner's line limit after the benchmark had saved its report. The complete JSON was retrieved over SCP instead, and its SHA256 matched the checksum emitted before the transfer failure. The startup script now emits compressed 4,000-character chunks; [the collector](../gpu/cuda/collect_serial.py) verifies completeness and SHA256, tolerates duplicate serial-log lines and rejects truncated transfers. Chunk recovery was checked locally. No second GPU run was needed for that transport fix.
 
 ## Scope
 
@@ -37,6 +62,6 @@ A win would justify comparing against the actual Pearl kernel and integrating om
 
 ## Result, uncertainty and next question
 
-**The CUDA port compiles, and its host arithmetic/planning checks pass. NVIDIA correctness and performance are unmeasured.** The one-GPU GCP quota requests have been approved; GPU execution is the next step. The uncertainty remains whether grouping can save time against NVIDIA's optimized integer matrix hardware after paying its extra costs.
+**CUDA correctness is established for these fixtures, but this implementation is slower than the direct cuBLAS control.** It supplies no evidence of higher mining earnings, lower complete mining cost or a defeat of Pearl's economic argument. It also does not prove that every possible grouped CUDA kernel must lose.
 
-Does this compiled implementation produce exact states on H100, and is it faster than the stronger direct cuBLAS control when all included preparation is counted?
+Can a fused implementation retain exact grouped arithmetic and states while avoiding enough grouping, correction and intermediate-buffer traffic to beat the direct control?
