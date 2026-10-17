@@ -1,6 +1,7 @@
 //! Narrow V3 seed/noise/tile-state reproduction from Pearl's public Rust sources.
 //! This does not construct or verify a network certificate.
 mod batched_grouping;
+mod bilateral;
 mod grouped_noise;
 mod seed_search;
 
@@ -165,6 +166,16 @@ fn main() {
         ]
     );
     let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|arg| arg == "--verify-bilateral") {
+        let dir = args.get(pos + 1).expect("usage: --verify-bilateral DIR");
+        bilateral::verify(std::path::Path::new(dir)).expect("verify bilateral fixtures");
+        return;
+    }
+    if let Some(pos) = args.iter().position(|arg| arg == "--export-bilateral") {
+        let dir = args.get(pos + 1).expect("usage: --export-bilateral DIR");
+        bilateral::export(std::path::Path::new(dir)).expect("export bilateral fixtures");
+        return;
+    }
     if let Some(pos) = args.iter().position(|arg| arg == "--seed-search") {
         let dir = args
             .get(pos + 1)

@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/018-commitment-seed-search.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/019-both-sided-core-factorization.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -56,6 +56,21 @@ Selected inputs reproduce **393,216 prefix entries and 96 tile states/hashes** a
 cargo run --offline --locked --release -- --seed-search /tmp/pearl-seed-search 65536
 python3 experiments/analyze_seed_search.py /tmp/pearl-seed-search \
   --source-dir . --output /tmp/pearl-seed-search-summary.json
+```
+
+## Factoring both noise maps
+
+An exact both-sided construction now factors the small integer core of each noise chunk. Across **32 fresh commitment-derived fixtures and 512 chunks**, rank bounds show the construction already uses the fewest possible 16-wide steps within this core-factorization approach for these inputs. It nevertheless saves only one extra step in one fixture versus choosing the better one-sided grouping direction per chunk.
+
+An adaptive coefficient cap keeps factor entries within **±3** while preserving that padded width. About **0.59% of left and 0.54% of right transformed coefficients** still need INT8 corrections. Independent Rust checks match **262,144 prefix values and 64 tile states/hashes**, including the correction for nonzero raw A. No new GPU speedup, official proof acceptance or mining advantage is claimed.
+
+[Construction and rank-bound scope](notes/019-both-sided-core-factorization.md) · [Full report](results/bilateral-core.json) · [Compressed factors and iteration history](results/bilateral-core-fixtures.tar.gz).
+
+```sh
+cargo run --offline --locked --release -- --export-bilateral /tmp/pearl-bilateral
+python3 experiments/bilateral_core.py /tmp/pearl-bilateral \
+  --output /tmp/pearl-bilateral-screen.json
+cargo run --offline --locked --release -- --verify-bilateral /tmp/pearl-bilateral
 ```
 
 ## First CUDA result on H100
@@ -143,4 +158,4 @@ Using [Pearl's illustrative 10% incremental-cost assumption](https://pearlresear
 
 ## Next question
 
-Can structure on both sides, or a way to compute the exact required XOR states without evaluating every prefix entry, save substantially more work than one-sided graph grouping? [The latest search](notes/018-commitment-seed-search.md) found only small additional arithmetic savings. An eventual mining claim must also pass the [complete reward-normalized cost comparison](notes/013-inference-overhead-threshold.md).
+Can stage-level profiling and a different grouping/anchor implementation turn the existing arithmetic saving into a runtime gain? [Both-sided factorization](notes/019-both-sided-core-factorization.md) gives little additional dense-width reduction on the tested inputs. Computing exact XOR states by another route remains open. An eventual mining claim must also pass the [complete reward-normalized cost comparison](notes/013-inference-overhead-threshold.md).

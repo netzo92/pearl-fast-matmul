@@ -27,6 +27,14 @@
       </div>
     </section>
 
+    <section class="section wrap" id="both-sided" aria-labelledby="both-sided-title">
+      <div class="section-heading"><h2 id="both-sided-title">Factoring both noise maps</h2><p>We tested an exact factorization using structure on both sides. Across 32 fixtures, it saves just one extra 16-wide step in one case compared with choosing the better one-sided grouping direction for each chunk.</p></div>
+      <p class="results-note">Rank bounds show the construction already uses the fewest 16-wide steps possible for these tested core matrices within this factorization approach. This bound does not cover other inputs, other multiplication algorithms, or a shortcut that computes only the required XOR states.</p>
+      <p class="results-note">The retained factors have coefficients within ±3. The transformed operands still need exact INT8 corrections: about 0.59% of left coefficients and 0.54% of right coefficients exceed the signed-byte range. Independent Rust checks match 262,144 prefix values and 64 tile states and hashes.</p>
+      <p class="results-note">No GPU benchmark or new official proof check was run for this construction. Planning and both operand transformations still cost work, and the plan changes with every fresh A commitment. No cloud resources were launched.</p>
+      <p class="data-links"><a href="data/bilateral-core.json">Report and rank bounds</a><a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/results/bilateral-core-fixtures.tar.gz">Full compressed fixtures</a><a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/019-both-sided-core-factorization.md">Construction and limits</a></p>
+    </section>
+
     <section class="section wrap" id="seed-search" aria-labelledby="seed-search-title">
       <div class="section-heading"><h2 id="seed-search-title">Searching for cheaper inputs</h2><p>We tested 262,144 mostly zero B matrices, each with a different commitment. Favorable noise graphs remove only 0.89–1.79% more dense tensor work than the zero-B baseline. These are operation counts, not GPU speed measurements.</p></div>
       <div class="table-scroll"><table class="data-table">

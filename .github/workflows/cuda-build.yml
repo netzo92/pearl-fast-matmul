@@ -7,6 +7,7 @@ on:
       - 'gpu/cuda/**'
       - 'src/**'
       - 'experiments/analyze_seed_search.py'
+      - 'experiments/bilateral_core.py'
       - 'Cargo.*'
       - '.github/workflows/cuda-build.yml'
 
@@ -53,6 +54,12 @@ jobs:
           cargo run --locked --release -- --seed-search /tmp/pearl-seed-smoke 16
           python experiments/analyze_seed_search.py /tmp/pearl-seed-smoke \
             --source-dir . --output /tmp/pearl-seed-smoke-summary.json
+      - name: Check both-sided integer factorizations and all exact prefixes
+        run: |
+          cargo run --locked --release -- --export-bilateral /tmp/pearl-bilateral
+          python experiments/bilateral_core.py /tmp/pearl-bilateral \
+            --output /tmp/pearl-bilateral-screen.json
+          cargo run --locked --release -- --verify-bilateral /tmp/pearl-bilateral
       - uses: actions/upload-artifact@v4
         with:
           name: cuda-host-conformance
