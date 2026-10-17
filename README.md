@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/013-inference-overhead-threshold.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/015-measuring-inference-overhead.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -96,6 +96,11 @@ Earlier notes preserve the conclusions reached at each step and link to the curr
 ## Conclusion
 
 Using [Pearl's illustrative 10% incremental-cost assumption](https://pearlresearch.ai/research/int-whitepaper), a hypothetical **complete-cost** speedup of 1.28x would leave useless mining at about 78% of the reference cost, versus 10% for adding mining to existing inference: roughly 7.8x as expensive. Our 1.28x measurement covers only the local matrix stage, so it does not establish that complete-cost ratio. The estimate gives a conditional threshold; it does not demonstrate an exploit. [Calculation and ELI5](notes/013-inference-overhead-threshold.md#conclusion-using-pearls-own-estimate).
+
+## Chain evidence and inference overhead
+
+- [Chain inspection](notes/014-chain-observability.md): the checked proof schema has no required customer receipt. Ten public API block responses (129036–129045) omit certificate data, so their real-inference status is unknown. [Report](results/chain-observability.json).
+- [Inference overhead](notes/015-measuring-inference-overhead.md): Pearl reports 3.9% and 5.08% for specific H200 serving setups. Those figures remain unverified here. The official code has a mining-off control for a matched A/B measurement; the earlier 10% figure is an economic example.
 
 ## Next question
 
