@@ -312,7 +312,8 @@ def main():
         "warmups": args.warmups,
         "mma16_shape": {"block_m": 16, "block_n": 128, "threads": 128, "instruction": "m16n8k16.s32.s8.s8.s32"},
         "grouped_mma16_dimensions": {f["name"]: [((int(d)+15)//16)*16 for d in load_fixture(root,f)["d"]] for f in selected},
-        "grouped_dense_inner_dimension": 128,
+        "legacy_grouped_dense_inner_dimension": 128,
+        "mma16_grouped_inner_dimension": "ceil(active_dimension/16)*16; padded control uses 128",
         "cuda_event_scope": "Elapsed stream span; may include host launch/copy gaps, not active GPU time.",
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
