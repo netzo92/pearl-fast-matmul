@@ -42,6 +42,8 @@ Host validation independently constructs both anchor plans in Python, compares t
 
 The evidence files accompanying this branch describe host checks only. GPU warp compaction, graph capture, performance and final states still need execution on NVIDIA hardware after approval.
 
+CUDA compilation and CPU-only CI passed at source revision `a2b275ea846f3ded064ed39b49e51daa124c21d4`. [Build and host checks](https://github.com/netzo92/pearl-fast-matmul/actions/runs/39021059345). This is the exact GPU-code revision prepared for the proposed run.
+
 The local host check covers **44 fixtures and 183,517,184 prefix values per anchor plan**. It also reconciles 44,804 stored reference states with the Rust prefixes. Both independent Python plans agree with the native C++ planner.
 
 Across the 32 cached fixtures, the degree anchor reduces nonzero residual coefficients from **176,288 to 157,145**, a **10.86% reduction in the number of corrections**. Across all 44 fixtures, including dense A, it changes 333,580 to 308,944, or 7.39%. These are coefficient counts, not runtime savings. Padded widths are unchanged. [Complete host evidence](../results/grouping-profile-host.json).
