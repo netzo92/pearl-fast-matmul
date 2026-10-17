@@ -2,3 +2,7 @@
 /conformance/results/
 __pycache__/
 .DS_Store
+
+/gpu/cuda/*.so
+
+/.cuda-build/

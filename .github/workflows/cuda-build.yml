@@ -1,0 +1,52 @@
+name: CUDA feasibility checks
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'gpu/cuda/**'
+      - 'src/**'
+      - 'Cargo.*'
+      - '.github/workflows/cuda-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compile-cuda:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile SM90 library without renting a GPU
+        run: |
+          mkdir -p .cuda-build
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src \
+            nvidia/cuda:12.8.1-devel-ubuntu24.04 \
+            bash gpu/cuda/build.sh /src/.cuda-build/libpearl_fast_matmul.so
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cuda-sm90-library
+          path: .cuda-build/libpearl_fast_matmul.so
+          retention-days: 7
+
+  host-conformance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r gpu/cuda/requirements.txt
+      - run: cargo run --locked --release -- --export-metal /tmp/pearl-cuda-fixtures
+      - run: c++ -std=c++17 -O2 gpu/cuda/plan_check.cpp -o /tmp/pearl-plan-check
+      - name: Compare exact grouped arithmetic and native plans with Rust fixtures
+        run: |
+          python gpu/cuda/benchmark.py /tmp/pearl-cuda-fixtures --validate-only \
+            --plan-checker /tmp/pearl-plan-check --output /tmp/cuda-host-check.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cuda-host-conformance
+          path: /tmp/cuda-host-check.json
+          retention-days: 7
