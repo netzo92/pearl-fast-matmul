@@ -10,6 +10,8 @@ case "$mode" in
     cuda|host) ;; *) echo "Usage: bash gpu/cuda/run.sh [REPORT_JSON] [cuda|host]" >&2; exit 2 ;;
 esac
 python_bin="${PYTHON:-python3}"
+profile_args=()
+if [[ "${PEARL_PROFILE_STAGES:-0}" == 1 ]]; then profile_args+=(--profile-stages); fi
 "$python_bin" -c 'import numpy' || { echo 'Install gpu/cuda/requirements.txt in your Python environment.' >&2; exit 1; }
 if [[ "$mode" == cuda ]]; then
     bash gpu/cuda/build.sh "$work_dir/libpearl_fast_matmul.so"
@@ -29,7 +31,7 @@ if [[ "$mode" == host ]]; then
         --plan-checker "$work_dir/plan-check" --output "$output"
 else
     "$python_bin" gpu/cuda/benchmark.py "$work_dir/fixtures" \
-        --library "$work_dir/libpearl_fast_matmul.so" --output "$output"
+        --library "$work_dir/libpearl_fast_matmul.so" "${profile_args[@]}" --output "$output"
     "$python_bin" - "$output" "$work_dir/original-report.json" <<'PYREPORT'
 import json, sys
 from pathlib import Path

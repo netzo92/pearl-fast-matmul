@@ -6,7 +6,7 @@ This is a feasibility benchmark. It does not mine, contact a pool, run inference
 
 ## Methods
 
-Seven paths share the same fixed-B fixtures and exact required prefix/state semantics:
+Ten paths share the same fixed-B fixtures and exact required prefix/state semantics:
 
 1. Direct INT8 cuBLAS strided-batched chunk products and state reduction.
 2. Grouped cuBLAS with per-candidate grouping and exact residual correction.
@@ -15,8 +15,11 @@ Seven paths share the same fixed-B fixtures and exact required prefix/state sema
 5. Prepared grouping followed by fused MMA16, corrections and states.
 6. Grouping inside the shared-memory load followed by fused MMA16, corrections and states.
 7. Inline grouping with dense width forced to 128 as a padding control.
+8. One warp per grouped row, followed by the same fused MMA16 kernel.
+9. Warp grouping with the highest-degree graph vertex as each component's anchor.
+10. The original grouping pass with degree anchors, to isolate anchor effects.
 
-Ratios compare the faster grouped MMA16 method (5 or 6) with the fastest direct control (1, 3 or 4). The legacy grouped method and padded control remain in every report. A new graph is prepared per B job, and grouping is paid for each A candidate. Grouped coefficients outside INT8 use exact signed residuals; no contribution is dropped.
+Ratios compare the fastest grouped MMA16 method (5, 6, 8, 9 or 10) with the fastest direct control (1, 3 or 4). The legacy grouped method and padded control remain in every report. A new graph is prepared per B job, and grouping is paid for each A candidate. Grouped coefficients outside INT8 use exact signed residuals; no contribution is dropped. Methods 8–10 are prepared for the next experiment and have not yet been validated on a GPU.
 
 The legacy cuBLAS methods use inner dimension 128 and materialize chunk products. The fused methods retain accumulators in registers. Grouped MMA16 rounds the active dimension to 16, usually 112 for these fixtures. All methods check every prefix in correctness mode and separately check the state-only timed path. Timings omit full-prefix writes for every method.
 
@@ -30,7 +33,7 @@ python3 -m venv /tmp/pearl-cuda-env
 PYTHON=/tmp/pearl-cuda-env/bin/python bash gpu/cuda/run.sh results/cuda-matrix-stage.json
 ```
 
-The runner exports all 32 cached fixtures. It checks all seven GPU paths before recording timings; a mismatch aborts. Eleven rounds rotate method order and include B preparation amortized across four candidates. Rounds replay those finite fixtures. Buffers, allocations, compilation and initial fixture uploads are outside timing.
+The runner exports all 32 cached fixtures. It checks all ten GPU paths before recording timings; a mismatch aborts. Eleven rounds rotate method order and include B preparation amortized across four candidates. Rounds replay those finite fixtures. Buffers, allocations, compilation and initial fixture uploads are outside timing.
 
 For a shorter first check, prepare fixtures once and select a shape:
 
@@ -54,6 +57,21 @@ For the smaller original 12-fixture set, use `--export-metal` instead of `--expo
 The retained vector-load implementation takes about **50 µs direct versus 153–155 µs grouped** at 2048 × 512, including B preparation amortized across four candidates. Without B preparation, it takes about 46 µs direct versus 101 µs grouped. All seven methods pass 44 fixtures, including small boundary tiles and dense nonzero A.
 
 [Latest results and iterations](../../notes/017-fused-mma16-h100.md) · [Raw MMA16 samples](../../results/cuda-mma16-h100.json) · [First CUDA experiment](../../notes/016-cuda-feasibility.md).
+
+## Optional stage profiling: awaiting GPU-run approval
+
+The next experiment is prepared on the `profile-grouping` branch. No profiling GPU run has started. [Exact plan, scope and approval requirement](../../notes/020-grouping-profile-plan.md).
+
+```sh
+PEARL_PROFILE_STAGES=1 PYTHON=/path/to/cuda-env/bin/python \
+  bash gpu/cuda/run.sh results/cuda-grouping-profile-h100.json
+```
+
+This adds CUDA graph replay of complete candidate batches, grouping alone, and fused stages with and without corrections. Complete batches use each prepared input; fused-only controls repeat candidate zero. Capture/instantiation, graph warmup, B preparation and fresh input generation are outside diagnostic timing. Primary timing still includes the original B preparation convention.
+
+The correction-free diagnostic is deliberately invalid, is checked against a clipped-only host reference, and is excluded from valid-method ratios. Its timing difference is not a pure correction-cost measurement: compiler allocation and occupancy can change. The diagnostics are separate from the complete candidate comparison.
+
+Host checks validate both anchor plans against independent Python arithmetic and the actual C++ planner. GPU correctness and performance still require the approved NVIDIA run.
 
 For GCP serial collection, the startup script emits compressed chunks with a SHA256 of the original JSON. Recover them with:
 
