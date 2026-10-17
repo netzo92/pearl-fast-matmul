@@ -13,7 +13,13 @@ from pathlib import Path
 
 import numpy as np
 
-METHODS = ("direct_cublas", "grouped_cublas_residual", "packed_direct_cublas")
+METHODS = (
+    "direct_cublas", "grouped_cublas_residual", "packed_direct_cublas",
+    "direct_mma16_fused", "grouped_mma16_prepared", "grouped_mma16_inline",
+    "grouped_mma16_inline_padded128",
+)
+DIRECT_METHODS = (METHODS[0], METHODS[2], METHODS[3])
+GROUPED_METHODS = (METHODS[4], METHODS[5])
 EXCLUSIONS = [
     "input commitments", "seed expansion and noise generation", "candidate generation",
     "final keyed BLAKE3 hashes", "winning-proof generation and verification",
@@ -216,13 +222,23 @@ def benchmark_family(native, candidates, loaded, rounds, warmups):
                             "b_preparation": prep, "candidate_batch": batch,
                             "wall_us_per_candidate_including_amortized_b": total})
         medians = {name: statistics.median(values) for name, values in samples.items()}
-        baseline = min((METHODS[0], METHODS[2]), key=medians.get)
-        ratio = medians[baseline] / medians[METHODS[1]]
-        paired_wins = sum(g < min(a, b) for a, g, b in zip(*(samples[name] for name in METHODS)))
+        baseline = min(DIRECT_METHODS, key=medians.get)
+        grouped = min(GROUPED_METHODS, key=medians.get)
+        ratio = medians[baseline] / medians[grouped]
+        paired_wins = sum(samples[grouped][i] < min(samples[name][i] for name in DIRECT_METHODS) for i in range(rounds))
+        candidate_medians = {name: statistics.median(x["candidate_batch"]["wall_us"] / len(inputs) for x in raw if x["method"] == name) for name in METHODS}
+        prep_medians = {name: statistics.median(x["b_preparation"]["wall_us"] for x in raw if x["method"] == name) for name in METHODS}
+        reuse_models = {str(reuse): {name: statistics.median((x["candidate_batch"]["wall_us"] / len(inputs)) + x["b_preparation"]["wall_us"] / reuse for x in raw if x["method"] == name) for name in METHODS} for reuse in (4, 64, 1024)}
         return {"m": f["m"], "n": f["n"], "job_key_id": f["id"],
                 "candidate_count": len(inputs), "candidate_names": [c["name"] for c in candidates],
                 "median_wall_us_per_candidate": medians, "faster_direct_control": baseline,
-                "grouped_speedup_vs_faster_direct": ratio, "grouped_paired_round_wins": paired_wins,
+                "selected_grouped_method": grouped,
+                "grouped_speedup_vs_faster_direct": ratio,
+                "all_method_ratios_vs_faster_direct": {name: medians[baseline] / medians[name] for name in METHODS},
+                "median_candidate_wall_us": candidate_medians,
+                "median_b_preparation_wall_us": prep_medians,
+                "modeled_amortized_wall_us_by_reuse": reuse_models,
+                "reuse_model_scope": "Costs recombined from measured four-candidate batches, not executions of 64 or 1024 distinct candidates.", "grouped_paired_round_wins": paired_wins,
                 "rounds": rounds, "raw_samples": raw}
     finally:
         native.lib.pfm_destroy(ctx)
@@ -281,17 +297,21 @@ def main():
             reports.append(result)
             print(f"PASS {key}: grouped / faster direct throughput ratio {result['grouped_speedup_vs_faster_direct']:.4f}x", flush=True)
     report = {
-        "schema_version": 1, "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "schema_version": 2, "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "status": "host_arithmetic_validated" if native is None else "cuda_matrix_stage_validated_and_benchmarked",
         "device": device, "python": sys.version, "numpy": np.__version__, "platform": platform.platform(),
         "manifest_sha256": digest(manifest_path),
-        "source_sha256": {p.name: digest(p) for p in sorted(Path(__file__).parent.iterdir()) if p.suffix in (".cu", ".hpp", ".py", ".sh")},
+        "source_sha256": {p.name: digest(p) for p in sorted(Path(__file__).parent.iterdir()) if p.suffix in (".cu", ".cuh", ".hpp", ".cpp", ".py", ".sh")},
         "fixture_sha256": {f["name"]: {key: digest(root / f[key]) for key in ("a", "bt", "v", "pairs", "prefixes", "states", "hashes")} for f in selected},
         "library_sha256": None if native is None else digest(args.library),
         "checks": checked, "cases": reports,
         "methods": list(METHODS), "excluded": EXCLUSIONS,
         "scope": "Synthetic fixed-B fixtures; finite candidates replayed across timing rounds. Not a miner or profit measurement.",
-        "baseline_scope": "INT8 cuBLAS strided-batched chunks with shared state reduction. Not Pearl's fused NVIDIA kernel.",
+        "baseline_scope": "Faster of direct cuBLAS, packed direct cuBLAS and fused direct MMA16. Not Pearl's fused NVIDIA kernel.",
+        "direct_methods": list(DIRECT_METHODS), "primary_grouped_methods": list(GROUPED_METHODS),
+        "warmups": args.warmups,
+        "mma16_shape": {"block_m": 16, "block_n": 128, "threads": 128, "instruction": "m16n8k16.s32.s8.s8.s32"},
+        "grouped_mma16_dimensions": {f["name"]: [((int(d)+15)//16)*16 for d in load_fixture(root,f)["d"]] for f in selected},
         "grouped_dense_inner_dimension": 128,
         "cuda_event_scope": "Elapsed stream span; may include host launch/copy gaps, not active GPU time.",
     }

@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "mma16.cuh"
 
 namespace {
 constexpr int R = 128, H = 8, W = 32;
@@ -170,7 +171,7 @@ struct Context {
         if (!values.empty()) ck(cudaMemcpy(b.p,values.data(),values.size()*sizeof(T),cudaMemcpyHostToDevice));
     }
     void prepare(int method) {
-        if (method!=1) {
+        if (method==0 || method==2 || method==3) {
             materialize<<<(n*k+255)/256,256,0,h.stream>>>(v.as<int8_t>(),pairs.as<uint32_t>(),bt.as<int8_t>(),n,k);
         } else {
             Plan p=make_plan(host_pairs,k);
@@ -180,10 +181,28 @@ struct Context {
         }
         ck(cudaGetLastError()); prepared=method;
     }
+    template<bool Grouped,bool Inline,bool Trim>
+    void fused(const int8_t* input,bool capture) {
+        dim3 grid((n+127)/128,(m+15)/16);
+        auto b=(Grouped ? contr.as<int8_t>() : bt.as<int8_t>());
+        if (capture)
+            pfm_mma16::prefix<Grouped,Inline,Trim,true><<<grid,128,0,h.stream>>>(input,b,offsets.as<uint32_t>(),edges.as<int32_t>(),dims.as<uint32_t>(),counts.as<uint32_t>(),indices.as<uint32_t>(),residuals.as<int16_t>(),prefixes.as<int32_t>(),states.as<uint32_t>(),m,n,k);
+        else
+            pfm_mma16::prefix<Grouped,Inline,Trim,false><<<grid,128,0,h.stream>>>(input,b,offsets.as<uint32_t>(),edges.as<int32_t>(),dims.as<uint32_t>(),counts.as<uint32_t>(),indices.as<uint32_t>(),residuals.as<int16_t>(),prefixes.as<int32_t>(),states.as<uint32_t>(),m,n,k);
+    }
     void run(int method,int candidate,bool capture) {
         if (prepared!=method) throw std::runtime_error("prepare B for the selected method first");
         if (candidate<0 || candidate>=candidates) throw std::runtime_error("candidate out of range");
         auto input=a.as<int8_t>()+size_t(candidate)*m*k;
+        if (method>=3) {
+            if (method==3) fused<false,false,false>(input,capture);
+            else if (method==4) {
+                group_a<<<chunks*m,R,0,h.stream>>>(input,offsets.as<uint32_t>(),edges.as<int32_t>(),dims.as<uint32_t>(),clipped.as<int8_t>(),counts.as<uint32_t>(),indices.as<uint32_t>(),residuals.as<int16_t>(),m,k);
+                fused<true,false,true>(clipped.as<int8_t>(),capture);
+            } else if (method==5) fused<true,true,true>(input,capture);
+            else fused<true,true,false>(input,capture);
+            ck(cudaGetLastError()); return;
+        }
         int8_t* b=bt.as<int8_t>();
         int lda=k;
         long long stride_a=R;
@@ -235,12 +254,12 @@ void* pfm_create(int m,int n,int k,int candidates,const int8_t* a,
 void pfm_destroy(void* p) { delete static_cast<Context*>(p); }
 int pfm_prepare(void* p,int method) {
     return guarded([&] {
-        if (method<0 || method>2) throw std::runtime_error("invalid method");
+        if (method<0 || method>6) throw std::runtime_error("invalid method");
         auto& c=*static_cast<Context*>(p); c.prepare(method); ck(cudaStreamSynchronize(c.h.stream));
     });
 }
 int pfm_run(void* p,int method,int candidate,int capture) {
-    return guarded([&] { auto& c=*static_cast<Context*>(p); if (method<0 || method>2) throw std::runtime_error("invalid method"); c.run(method,candidate,capture!=0); ck(cudaStreamSynchronize(c.h.stream)); });
+    return guarded([&] { auto& c=*static_cast<Context*>(p); if (method<0 || method>6) throw std::runtime_error("invalid method"); c.run(method,candidate,capture!=0); ck(cudaStreamSynchronize(c.h.stream)); });
 }
 int pfm_read(void* p,int32_t* prefixes,uint32_t* states) {
     return guarded([&] {
@@ -253,7 +272,7 @@ int pfm_read(void* p,int32_t* prefixes,uint32_t* states) {
 // The CUDA event span can include host scheduling gaps; it is not active GPU time.
 int pfm_measure(void* p,int method,int mode,double* wall_us,double* stream_us) {
     return guarded([&] {
-        if (method<0 || method>2 || mode<0 || mode>1) throw std::runtime_error("invalid measurement mode");
+        if (method<0 || method>6 || mode<0 || mode>1) throw std::runtime_error("invalid measurement mode");
         auto& c=*static_cast<Context*>(p);
         ck(cudaStreamSynchronize(c.h.stream));
         auto start=std::chrono::steady_clock::now();

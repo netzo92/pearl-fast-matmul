@@ -8,4 +8,5 @@ case "$arch" in sm_80|sm_86|sm_89|sm_90) ;; *) echo "Unsupported CUDA_ARCH: $arc
 mkdir -p -- "$(dirname -- "$output")"
 nvcc --std=c++17 -O3 -lineinfo -arch="$arch" -Xcompiler=-fPIC \
     --shared "$source_dir/benchmark.cu" -lcublas -o "$output"
-echo "Built $output ($arch)"
+cuobjdump --dump-sass "$output" > "$output.sass"
+echo "Built $output ($arch); SASS saved to $output.sass"

@@ -14,6 +14,13 @@ python_bin="${PYTHON:-python3}"
 if [[ "$mode" == cuda ]]; then
     bash gpu/cuda/build.sh "$work_dir/libpearl_fast_matmul.so"
 fi
+if [[ "$mode" == cuda ]]; then
+    # Smaller tiles and dense nonzero A exercise boundaries and larger residuals.
+    cargo run --locked --release -- --export-metal "$work_dir/original-fixtures"
+    "$python_bin" gpu/cuda/benchmark.py "$work_dir/original-fixtures" \
+        --library "$work_dir/libpearl_fast_matmul.so" --rounds 3 --warmups 1 \
+        --output "$work_dir/original-report.json"
+fi
 # Existing portable fixture format; four distinct A commitments per fixed-B job.
 cargo run --locked --release -- --export-metal-cached "$work_dir/fixtures"
 if [[ "$mode" == host ]]; then
@@ -23,4 +30,15 @@ if [[ "$mode" == host ]]; then
 else
     "$python_bin" gpu/cuda/benchmark.py "$work_dir/fixtures" \
         --library "$work_dir/libpearl_fast_matmul.so" --output "$output"
+    "$python_bin" - "$output" "$work_dir/original-report.json" <<'PYREPORT'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+report = json.loads(path.read_text())
+original = json.loads(Path(sys.argv[2]).read_text())
+report['additional_gpu_checks'] = original['checks']
+report['additional_gpu_check_cases'] = original['cases']
+report['additional_gpu_check_scope'] = 'Original 12 fixtures exercise m=8, n=32 and dense nonzero A; 3 timing rounds are retained but not used for primary speed claims.'
+path.write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+PYREPORT
 fi

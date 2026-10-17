@@ -24,10 +24,12 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src \
             nvidia/cuda:12.8.1-devel-ubuntu24.04 \
             bash gpu/cuda/build.sh /src/.cuda-build/libpearl_fast_matmul.so
+      - name: Inspect generated tensor instructions
+        run: grep -m 16 'IMMA' .cuda-build/libpearl_fast_matmul.so.sass
       - uses: actions/upload-artifact@v4
         with:
           name: cuda-sm90-library
-          path: .cuda-build/libpearl_fast_matmul.so
+          path: .cuda-build/libpearl_fast_matmul.so*
           retention-days: 7
 
   host-conformance:
