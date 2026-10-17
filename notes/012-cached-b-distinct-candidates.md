@@ -45,7 +45,7 @@ These fixtures remove about 16–17% of scalar multiplications. Considering mult
 
 Writing both zero-input noise operands as sparse-selection factorizations exposes a small middle matrix. Reassociating those factors alone does not establish a further speedup: every required prefix must still be computed, and forming the intermediate factors adds work. No faster two-sided algorithm is established here.
 
-For larger gains, a next implementation could retain each tile's accumulators and produce its state on the GPU instead of writing and rereading complete prefix matrices. The direct control must receive the same output reduction, and any resulting advantage must be measured again. A manyfold gain would require a stronger algorithm or another protocol-specific weakness.
+For larger gains, a next implementation could retain each tile's accumulators and produce its state on the GPU instead of writing and rereading complete prefix matrices. The direct control must receive the same output reduction, and any resulting advantage must be measured again. A manyfold gain is not the success criterion: a stable improvement in complete cost per expected accepted reward can be sufficient. Competing with an existing inference provider additionally requires comparison against its incremental mining cost; see [the cost model](013-inference-overhead-threshold.md).
 
 ## Reproduce
 
@@ -65,4 +65,4 @@ Both require a Metal-capable Mac, Cargo and Swift. Fixtures are generated in a t
 
 **Fixed-B reuse and larger batches give a repeatable matrix-stage benefit against the existing direct Metal prototype: about 1.28x at the largest shape on both tested job keys.** The raw useful result is always zero, while different A inputs produce fresh noise and reference hashes. This establishes a faster local computation path for these fixtures. It does not establish a competitive miner, network acceptance, or a break of the paper's hardness conjecture.
 
-The main uncertainties are the excluded candidate-generation/hash/proof costs, the limited job-key sample and the strength of the baseline. Can the advantage survive GPU state production and hashing, with the same optimizations applied to direct multiplication?
+The main uncertainties are the excluded candidate-generation/hash/proof costs, the limited job-key sample and the strength of the baseline. Can the advantage survive the complete candidate/proof pipeline and beat the measured incremental mining cost of useful inference?

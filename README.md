@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/012-cached-b-distinct-candidates.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/013-inference-overhead-threshold.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -95,4 +95,4 @@ Earlier notes preserve the conclusions reached at each step and link to the curr
 
 ## Next question
 
-Can the matrix-stage advantage survive GPU state production and hashing, with the same optimizations applied to direct multiplication?
+Can complete grouped useless mining beat the **incremental cost of adding mining to useful inference**, per expected accepted reward, on the same hardware? No predetermined speedup factor is required. The current matrix-stage measurements do not measure that incremental cost. [Cost model and next measurement](notes/013-inference-overhead-threshold.md).
