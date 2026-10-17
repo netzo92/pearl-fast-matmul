@@ -25,9 +25,10 @@ function showCase(item) {
   byId("axis-max").textContent = `${number(maximum)} µs / batch`;
   const best = Math.min(item.direct_us, item.packed_us);
   const faster = best > item.grouped_us;
+  const bestName = item.packed_us < item.direct_us ? "packed direct" : "direct";
   const factor = faster ? best / item.grouped_us : item.grouped_us / best;
   byId("speed-ratio").textContent = `${number(factor)}×`;
-  byId("speed-description").textContent = factor < 1.005 ? "approximately the same elapsed time" : faster ? "faster in this CPU measurement" : "slower in this CPU measurement";
+  byId("speed-description").textContent = factor < 1.005 ? "about the same time" : faster ? `faster than ${bestName}` : `slower than ${bestName}`;
   byId("multiplications-saved").textContent = `${number(item.mul_saved_pct)}%`;
   byId("batch-tickets").textContent = integer(item.tickets);
   byId("benchmark-chart").setAttribute("aria-label", `${item.m} by ${item.n} batch. Direct: ${number(item.direct_us)} microseconds; packed direct: ${number(item.packed_us)} microseconds; grouped: ${number(item.grouped_us)} microseconds. Lower is better.`);
@@ -43,26 +44,25 @@ async function loadBenchmarks() {
     cases.forEach((item, index) => {
       const option = document.createElement("option");
       option.value = String(index);
-      option.textContent = `${item.m} × ${item.n} · ${integer(item.tickets)} tickets`;
+      option.textContent = `${item.m} × ${item.n} · ${integer(item.tickets)} ${item.tickets === 1 ? "ticket" : "tickets"}`;
       select.append(option);
     });
     select.value = String(cases.length - 1);
     select.disabled = false;
     select.addEventListener("change", () => showCase(cases[Number(select.value)]));
     const total = Number.isFinite(data.correctness?.tickets) ? data.correctness.tickets : cases.reduce((sum, item) => sum + item.tickets, 0);
-    byId("ticket-count").textContent = integer(total);
     byId("local-check-count").textContent = integer(total);
     const environment = data.environment || {};
     byId("environment-label").textContent = [environment.cpu, environment.rust, environment.profile].filter(Boolean).join(" · ");
-    byId("timing-scope").textContent = data.scope || "Kernel timing only. Consult the raw benchmark record for included work, preparation, and measurement methodology.";
+    byId("timing-scope").textContent = data.scope || "Kernel timing only. See the raw data for included costs.";
     byId("benchmark-message").hidden = true;
     byId("benchmark-content").hidden = false;
     showCase(cases[cases.length - 1]);
   } catch (error) {
-    byId("benchmark-message").textContent = "Recorded timings could not be loaded. Open the raw benchmark JSON or the repository to inspect the measurements.";
+    byId("benchmark-message").textContent = "Could not load CPU timings.";
     const link = document.createElement("a");
     link.href = "data/benchmarks.json";
-    link.textContent = " View benchmark data ↗";
+    link.textContent = " Open raw data";
     byId("benchmark-message").append(link);
     byId("batch-select").replaceChildren(new Option("Measurements unavailable", ""));
   }
@@ -80,11 +80,11 @@ async function loadConformance() {
     byId("negative-check-copy").textContent = `${controls} of ${cases.length} cases reject both corrupted raw data and a zero target.`;
     if (passed !== cases.length || controls !== cases.length) {
       byId("conformance-message").hidden = false;
-      byId("conformance-message").textContent = "The report contains incomplete or failing checks. Inspect the raw conformance report before interpreting these results.";
+      byId("conformance-message").textContent = "Some verifier checks failed or are missing. See the raw report.";
     }
   } catch (error) {
     byId("conformance-message").hidden = false;
-    byId("conformance-message").textContent = "Live report loading is unavailable. The summary above records the published checks; inspect the repository for the full report.";
+    byId("conformance-message").textContent = "Could not load the verifier report. The text above shows the published result.";
   }
 }
 

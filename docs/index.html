@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A reproducible study of exact signed-noise grouping for Pearl INT V3. Explore the algorithm, CPU and Metal measurements, and official plain-verifier checks.">
+  <meta name="description" content="Code and benchmarks for cheaper Pearl matrix multiplication with zero-product inputs. Apple M4 GPU results, verifier checks, and a cost comparison.">
   <meta name="theme-color" content="#f4f2eb">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23172f37%27/%3E%3Cpath d=%27M8 8h6v6H8zm10 0h6v6h-6zM8 18h6v6H8zm10 0h6v6h-6z%27 fill=%27%23f4f2eb%27/%3E%3C/svg%3E">
-  <title>Pearl Fast Matmul — an exact arithmetic experiment</title>
+  <title>Pearl fast matmul — results and code</title>
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
 </head>
@@ -14,88 +14,81 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header wrap">
     <a class="wordmark" href="#" aria-label="Pearl Fast Matmul home"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>pearl<span class="wordmark-light"> / fast matmul</span></a>
-    <nav aria-label="Main navigation"><a href="#method">Method</a><a href="#results">Results</a><a href="#reproduce">Reproduce</a><a class="repo-link" href="https://github.com/netzo92/pearl-fast-matmul">GitHub <span aria-hidden="true">↗</span></a></nav>
+    <nav aria-label="Main navigation"><a href="#gpu-results">Results</a><a href="#method">Method</a><a href="#reproduce">Reproduce</a><a class="repo-link" href="https://github.com/netzo92/pearl-fast-matmul">GitHub <span aria-hidden="true">↗</span></a></nav>
   </header>
 
   <main id="main">
     <section class="hero wrap" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <div class="eyebrow"><span class="status-dot"></span> An open research notebook <span class="eyebrow-index">/ 001</span></div>
-        <h1 id="hero-title">One product.<br>Fewer <em>multiplications.</em></h1>
-        <p class="hero-intro">An exact arithmetic shortcut for Pearl’s signed noise. Group repeated selections, preserve every intermediate product, and measure what actually gets faster.</p>
-        <div class="hero-actions"><a class="button button-dark" href="#results">Explore the measurements <span aria-hidden="true">↓</span></a><a class="text-link" href="https://github.com/netzo92/pearl-fast-matmul">Read the source <span aria-hidden="true">↗</span></a></div>
-        <p class="hero-note">Pearl INT V3 · Rust + Metal prototypes · Reproducible evidence</p>
+        <p class="eyebrow">Pearl INT V3 · Rust and Metal</p>
+        <h1 id="hero-title">Pearl fast matmul</h1>
+        <p class="hero-intro">We’re testing whether miners can save work by choosing matrices whose useful product is zero. Grouping Pearl’s noise makes our M4 multiplication kernel faster. Complete mining cost is still unmeasured.</p>
+        <div class="hero-actions"><a class="text-link" href="#gpu-results">GPU results</a><a class="text-link" href="#conclusion">Conclusion</a><a class="text-link" href="https://github.com/netzo92/pearl-fast-matmul">Source code</a></div>
       </div>
-      <aside class="hero-card" aria-label="Research summary">
-        <div class="card-topline"><span>THE EXPERIMENT</span><span class="mono">B = 0</span></div>
-        <div class="matrix-illustration" aria-hidden="true">
-          <div class="matrix-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <span class="matrix-operation">→</span>
-          <div class="matrix-grid matrix-grouped"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        </div>
-        <div class="card-equation">Σ G<sub>t</sub> V<sub>t</sub><br><span class="equation-equals">=</span> Σ G<sub>t</sub> (V<sub>t</sub> − V<sub>a</sub>)</div>
-        <p>Inside each connected component, the grouped coefficients sum to zero. One coefficient can be removed exactly.</p>
-        <div class="card-bottom"><span>Same chunk products</span><span>Same hash state <span aria-hidden="true">↗</span></span></div>
-      </aside>
     </section>
 
-    <section class="evidence-strip wrap" aria-label="Evidence at a glance">
-      <div><span class="evidence-label">LOCAL CPU BATCH CHECKS</span><strong id="ticket-count">2,046</strong><span>tickets with identical prefixes &amp; hashes</span></div>
-      <div><span class="evidence-label">OFFICIAL PLAIN VERIFIER</span><strong id="conformance-count">2 / 2</strong><span>accepted cases at an easy test target</span></div>
-      <div><span class="evidence-label">RESEARCH STATUS</span><strong class="text-metric">CPU + Metal</strong><span>Competitive mining advantage unestablished</span></div>
+    <section class="section wrap" id="gpu-results" aria-labelledby="gpu-title">
+      <div class="section-heading"><h2 id="gpu-title">GPU results</h2><p>At 2048 × 512, grouping takes about 17.3 ms per candidate instead of 22.2 ms: 28% more computations per second, or 22% less time. Smaller shapes show less benefit.</p></div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <caption>Apple M4. Medians of 11 samples per job key.</caption>
+          <thead><tr><th scope="col">Job key</th><th scope="col">Direct</th><th scope="col">Grouped</th><th scope="col">Throughput ratio</th></tr></thead>
+          <tbody><tr><th scope="row">0</th><td>22.15 ms</td><td>17.29 ms</td><td>1.282×</td></tr><tr><th scope="row">1</th><td>22.15 ms</td><td>17.31 ms</td><td>1.280×</td></tr></tbody>
+        </table>
+      </div>
+      <p class="results-note">Both methods reuse B preparation across four different A inputs. Grouping A is timed for every candidate. Direct gets the same reuse; an extra control packs A into the grouped layout. The table uses the faster direct control.</p>
+      <p class="results-note">Timings exclude commitments, noise generation, final state/hash computation, and proofs. The baseline is our integer Metal kernel, not Pearl’s NVIDIA miner. Timing rounds repeat the same four prepared candidates.</p>
+      <p class="results-note">All three GPU paths match 178,257,920 reference intermediate values and 43,520 tile hash states across 32 cases. The raw product AB is always zero; different A inputs produce different noise seeds and reference hashes.</p>
+      <p class="data-links"><a href="data/metal-cached-m4.json">Raw samples</a><a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/012-cached-b-distinct-candidates.md">Benchmark details</a><a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/011-metal-prefix-benchmark.md">Earlier GPU run</a></p>
+    </section>
+
+    <section class="section wrap" id="conclusion" aria-labelledby="conclusion-title">
+      <div class="section-heading"><h2 id="conclusion-title">Conclusion</h2><p>We have a faster local matrix kernel. We have not shown that useless mining is cheaper than adding mining to useful inference.</p></div>
+      <p class="prose"><a href="https://pearlresearch.ai/research/int-whitepaper">Pearl’s economic example</a> assumes an existing inference provider pays 10% extra for mining. If our 1.28× kernel ratio carried over to the whole mining bill, useless mining would still cost about 78% of the reference bill: 7.8 times that assumed extra cost. Neither complete cost has been measured here.</p>
+      <div class="scope-note"><h3>ELI5</h3><p>Someone already runs a machine for a customer. Collecting mining rewards costs them an extra $10. Another person runs the machine only for mining, normally costing $100. If our shortcut cut their whole bill to $78, they would still pay more than $10. Those are example dollars; the actual costs need measuring.</p></div>
+      <p class="data-links"><a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/013-inference-overhead-threshold.md#conclusion-using-pearls-own-estimate">Calculation and assumptions</a></p>
     </section>
 
     <section class="section wrap" id="method" aria-labelledby="method-title">
-      <div class="section-heading"><span class="section-number">01 / THE METHOD</span><h2 id="method-title">Find the structure<br>inside the noise.</h2><p>With the raw B matrix set to zero, its noised entries are signed differences of seeded values. Treat those selections as a graph, then combine their coefficients.</p></div>
+      <div class="section-heading"><span class="section-number">Method</span><h2 id="method-title">The grouping identity</h2><p>When raw B is zero, Pearl’s noise has the form V[p] − V[q]. Group terms that use the same V entry, then remove one coefficient per connected component. The example below reduces three multiplications to two.</p></div>
       <div class="method-flow">
         <article class="method-step"><div class="step-top"><span class="step-index">1</span><span>Signed selections</span></div>
           <svg class="graph" viewBox="0 0 300 190" role="img" aria-labelledby="graph-title graph-desc"><title id="graph-title">A triangle of three signed selections</title><desc id="graph-desc">Three edges connect vertices zero, one, and two. An edge coefficient adds to its source and subtracts from its destination. These three products can be expressed as two grouped products.</desc><defs><marker id="arrowhead" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#477466"/></marker></defs><path d="M72 141L138 37M166 36L232 141M227 159L79 159" fill="none" stroke="#477466" stroke-width="2" marker-end="url(#arrowhead)"/><circle cx="62" cy="158" r="19"/><circle cx="150" cy="23" r="19"/><circle cx="248" cy="158" r="19"/><g class="node-label"><text x="62" y="164">0</text><text x="150" y="29">1</text><text x="248" y="164">2</text></g><g class="edge-label"><text x="87" y="85">a</text><text x="216" y="85">b</text><text x="151" y="148">c</text></g></svg>
-          <p class="formula">a(V₀ − V₁) + b(V₁ − V₂)<br>+ c(V₂ − V₀)</p><p class="step-caption">Three products in this small example.</p>
+          <p class="formula">a(V₀ − V₁) + b(V₁ − V₂)<br>+ c(V₂ − V₀)</p><p class="step-caption">Start with three multiplications.</p>
         </article>
         <article class="method-step"><div class="step-top"><span class="step-index">2</span><span>Collect by vertex</span></div><div class="coefficient-list"><div><span>G₀</span><span>a − c</span></div><div><span>G₁</span><span>b − a</span></div><div><span>G₂</span><span>c − b</span></div></div><p class="formula highlight-formula">G₀ + G₁ + G₂ = 0</p><p class="step-caption">Every signed edge cancels in the sum.</p></article>
-        <article class="method-step"><div class="step-top"><span class="step-index">3</span><span>Choose an anchor</span></div><div class="anchor-illustration"><span class="anchor-pill">ANCHOR: V₀</span><p>G₁(V₁ − V₀)<br><span>+</span> G₂(V₂ − V₀)</p></div><p class="formula highlight-formula">3 products → 2 products</p><p class="step-caption">The result stays exact at every chunk.</p></article>
+        <article class="method-step"><div class="step-top"><span class="step-index">3</span><span>Choose an anchor</span></div><div class="anchor-illustration"><span class="anchor-pill">ANCHOR: V₀</span><p>G₁(V₁ − V₀)<br><span>+</span> G₂(V₂ − V₀)</p></div><p class="formula highlight-formula">3 products → 2 products</p><p class="step-caption">Each intermediate result stays the same.</p></article>
       </div>
-      <div class="method-footnote"><span class="small-label">IN THE FULL ALGORITHM</span><p>A chunk with <span class="inline-math">r</span> vertices and <span class="inline-math">c</span> connected components needs <span class="inline-math">r − c</span> grouped multiplications per output entry. Batch processing reuses the graph and grouped operands across tiles. Graph construction, additions, and memory traffic still cost time.</p></div>
+      <div class="method-footnote"><span class="small-label">General case</span><p>A chunk with <span class="inline-math">r</span> vertices and <span class="inline-math">c</span> connected components needs <span class="inline-math">r − c</span> grouped multiplications per output entry. Batch processing reuses the graph and grouped operands across tiles. Graph construction, additions, and memory traffic still cost time.</p></div>
     </section>
 
     <section class="results-section" id="results" aria-labelledby="results-title"><div class="wrap section">
-      <div class="section-heading"><span class="section-number">02 / THE MEASUREMENTS</span><h2 id="results-title">Arithmetic is a start.<br>Time is the test.</h2><p>Compare the grouped kernel with both the direct kernel and a packed direct baseline. Every batch is checked for identical prefix matrices and ticket hashes before timing.</p></div>
+      <div class="section-heading"><span class="section-number">Earlier results</span><h2 id="results-title">CPU benchmark (int32)</h2><p>Grouping was slower than packed direct multiplication in this benchmark. Later int8 CPU kernels were faster still: 2.28 ms direct versus 4.61 ms grouped at 512 × 128.</p></div>
       <div class="benchmark-panel">
-        <div class="benchmark-toolbar"><div><label for="batch-select">MATRIX BATCH</label><select id="batch-select" disabled><option>Loading recorded measurements…</option></select></div><div class="timing-label"><span class="status-dot"></span> Recorded CPU results <span>· lower is better</span></div></div>
-        <div id="benchmark-message" class="data-message" role="status">Loading benchmark data…</div>
+        <div class="benchmark-toolbar"><div><label for="batch-select">Output shape</label><select id="batch-select" disabled><option>Loading timings…</option></select></div><div class="timing-label"><span class="status-dot"></span> CPU time <span>· lower is better</span></div></div>
+        <div id="benchmark-message" class="data-message" role="status">Loading timings…</div>
         <div id="benchmark-content" hidden>
-          <div class="chart-layout"><div class="bar-chart" role="img" id="benchmark-chart" aria-label="Recorded kernel timings"><div class="bar-row"><div class="bar-label">Direct<span id="direct-value"></span></div><div class="bar-track"><div id="direct-bar" class="bar bar-direct"></div></div></div><div class="bar-row"><div class="bar-label">Packed direct<span id="packed-value"></span></div><div class="bar-track"><div id="packed-bar" class="bar bar-packed"></div></div></div><div class="bar-row"><div class="bar-label">Grouped<span id="grouped-value"></span></div><div class="bar-track"><div id="grouped-bar" class="bar bar-grouped"></div></div></div><div class="chart-axis"><span>0</span><span id="axis-max">µs / batch</span></div></div><div class="benchmark-summary"><span class="small-label">VS. THE FASTER DIRECT BASELINE</span><strong id="speed-ratio">—</strong><span id="speed-description"></span><div class="summary-rule"></div><div class="summary-line"><span>Multiplications saved</span><b id="multiplications-saved">—</b></div><div class="summary-line"><span>Tickets in this batch</span><b id="batch-tickets">—</b></div></div></div>
+          <div class="chart-layout"><div class="bar-chart" role="img" id="benchmark-chart" aria-label="Recorded kernel timings"><div class="bar-row"><div class="bar-label">Direct<span id="direct-value"></span></div><div class="bar-track"><div id="direct-bar" class="bar bar-direct"></div></div></div><div class="bar-row"><div class="bar-label">Packed direct<span id="packed-value"></span></div><div class="bar-track"><div id="packed-bar" class="bar bar-packed"></div></div></div><div class="bar-row"><div class="bar-label">Grouped<span id="grouped-value"></span></div><div class="bar-track"><div id="grouped-bar" class="bar bar-grouped"></div></div></div><div class="chart-axis"><span>0</span><span id="axis-max">µs / batch</span></div></div><div class="benchmark-summary"><span class="small-label">Grouped / faster direct</span><strong id="speed-ratio">—</strong><span id="speed-description"></span><div class="summary-rule"></div><div class="summary-line"><span>Multiplications saved</span><b id="multiplications-saved">—</b></div><div class="summary-line"><span>Tickets in this batch</span><b id="batch-tickets">—</b></div></div></div>
           <p class="timing-scope" id="timing-scope"></p>
           <div class="benchmark-environment"><span id="environment-label"></span><a href="data/benchmarks.json">Download measurements <span aria-hidden="true">↗</span></a></div>
         </div>
       </div>
-      <p class="results-note">These are local CPU timings. A practical mining advantage requires an end-to-end comparison of accepted tickets per total cost against Pearl’s GPU miner.</p>
+      <p class="results-note">This chart records the earlier int32 experiment. The <a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/010-narrow-types-and-local-gpu.md">int8 results</a> supersede it as the faster CPU control.</p>
     </div></section>
 
-    <section class="section wrap validation-section" aria-labelledby="validation-title"><div class="validation-heading"><span class="section-number">03 / THE EVIDENCE</span><h2 id="validation-title">Exactness,<br>checked twice.</h2><p>The local implementation compares all intermediate products. A separate conformance harness checks the official CPU code at a pinned upstream revision.</p><a class="text-link" href="data/conformance.json">Inspect the conformance report <span aria-hidden="true">↗</span></a></div>
-      <div class="validation-details"><div class="check-row"><span class="check-symbol" aria-hidden="true">✓</span><div><h3>Every local prefix and ticket hash</h3><p><span id="local-check-count">2,046</span> batched tickets compared with the direct calculation.</p></div><span class="check-tag">LOCAL</span></div><div class="check-row"><span class="check-symbol" aria-hidden="true">✓</span><div><h3>Official state, hash, and plain proof</h3><p id="official-check-copy">Both zero and nonzero A cases pass the upstream CPU checks.</p></div><span class="check-tag">UPSTREAM</span></div><div class="check-row"><span class="check-symbol" aria-hidden="true">✓</span><div><h3>Negative controls</h3><p id="negative-check-copy">Corrupted raw data and a zero target are rejected in both cases.</p></div><span class="check-tag">UPSTREAM</span></div><div class="scope-note"><h3>What this establishes</h3><p>Exact arithmetic and official plain-proof acceptance for two cases at the easy threshold <code>0x207fffff</code>. It does not establish a ZK certificate, network acceptance, a GPU speedup, or a break of proof of useful work.</p></div><p class="upstream-pin">Pinned upstream <a href="https://github.com/pearl-research-labs/pearl/tree/2f8b770cac8f8b74be05c1fc51c2baeb76ce0701"><code>2f8b770cac8f</code> <span aria-hidden="true">↗</span></a></p><p id="conformance-message" class="data-message" role="status" hidden></p></div>
+    <section class="section wrap validation-section" aria-labelledby="validation-title"><div class="validation-heading"><span class="section-number">Verification</span><h2 id="validation-title">Correctness checks</h2><p>The CPU tests compare every intermediate result and hash. Two separate cases also pass Pearl’s official CPU verifier.</p><a class="text-link" href="data/conformance.json">Verifier report</a></div>
+      <div class="validation-details"><div class="check-row"><span class="check-symbol" aria-hidden="true">✓</span><div><h3>Local CPU reference</h3><p><span id="local-check-count">2,046</span> batched tickets compared with the direct calculation.</p></div><span class="check-tag">CPU</span></div><div class="check-row"><span class="check-symbol" aria-hidden="true">✓</span><div><h3>Official plain proofs: <span id="conformance-count">2 / 2</span></h3><p id="official-check-copy">Both zero and nonzero A cases pass the upstream CPU checks.</p></div><span class="check-tag">Pearl</span></div><div class="check-row"><span class="check-symbol" aria-hidden="true">✓</span><div><h3>Negative controls</h3><p id="negative-check-copy">Corrupted raw data and a zero target are rejected in both cases.</p></div><span class="check-tag">Pearl</span></div><div class="scope-note"><h3>Scope</h3><p>The official checks use the easy threshold <code>0x207fffff</code>. They test compatibility, not success at network difficulty. No ZK certificate or live block was submitted.</p></div><p class="upstream-pin">Pearl source revision <a href="https://github.com/pearl-research-labs/pearl/tree/2f8b770cac8f8b74be05c1fc51c2baeb76ce0701"><code>2f8b770cac8f</code> <span aria-hidden="true">↗</span></a></p><p id="conformance-message" class="data-message" role="status" hidden></p></div>
     </section>
 
-
-    <section class="section wrap" id="gpu-results" aria-labelledby="gpu-title">
-      <div class="section-heading"><span class="section-number">LOCAL GPU UPDATE</span><h2 id="gpu-title">Reuse preparation.<br>Compute fresh candidates.</h2><p>Fixed zero B, four distinct sparse A inputs per job. All three Metal paths match 178,257,920 reference intermediate values and 43,520 tile hash states across 32 fixtures. Every raw product AB is zero; changing A regenerates its noise and reference hashes.</p></div>
-      <div class="scope-note"><h3>28% more matrix-stage throughput at the largest shape.</h3><p>At 2048 × 512 output, direct computation takes 22.15 ms per candidate versus 17.29–17.31 ms grouped, across two predetermined job keys. These times include per-candidate A grouping and B preparation shared across four candidates. All methods receive B reuse; an additional direct control includes per-candidate A packing. Ratios use the faster direct control. All eleven paired rounds favor grouping on both keys at this shape.</p><p>Smaller shapes show less benefit. Timed rounds replay the same finite candidate set. These local integer prototypes exclude commitments, noise generation, final state/hash computation and proof generation. No comparison against Pearl’s NVIDIA miner or total mining advantage is established. The next test compares complete useless-mining cost per reward with the extra cost of mining during useful inference; no predetermined speedup factor is required. <a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/013-inference-overhead-threshold.md">Read the cost model</a>.</p><p><a class="text-link" href="data/metal-cached-m4.json">Download cached GPU samples ↗</a> · <a class="text-link" href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/012-cached-b-distinct-candidates.md">Read the methodology ↗</a></p><p>The <a href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/011-metal-prefix-benchmark.md">earlier uncached experiment</a> was effectively tied after preparation. No cloud hardware was used.</p></div>
-    </section>
-
-    <section class="section wrap" id="conclusion" aria-labelledby="conclusion-title">
-      <div class="section-heading"><span class="section-number">CONCLUSION</span><h2 id="conclusion-title">What their estimate<br>would imply.</h2><p><a href="https://pearlresearch.ai/research/int-whitepaper">Pearl's economic example</a> assumes a 10% extra mining cost for an existing inference provider. Even if our 1.28x matrix-stage ratio carried over to complete mining cost, dedicated useless mining would cost about 78% of the reference, roughly 7.8 times that assumed extra cost. That extrapolation is hypothetical; neither complete cost has been measured here.</p></div>
-      <div class="scope-note"><h3>ELI5</h3><p>Imagine earning the same raffle tickets with two machines. One already works for a paying customer, so collecting tickets costs an extra $10. The other runs only for tickets and normally costs $100. If our shortcut reduced its whole bill to $78, it would still cost more than $10. These are illustrative dollars. We must beat the actual extra bill; a faster matrix stage alone does not settle that comparison.</p><p>Exact useless grouping works in our local checks. A competitive mining advantage and a break of Pearl's hardness conjecture remain unestablished. <a class="text-link" href="https://github.com/netzo92/pearl-fast-matmul/blob/main/notes/013-inference-overhead-threshold.md#conclusion-using-pearls-own-estimate">Read the conclusion and assumptions ↗</a></p></div>
-    </section>
-
-    <section class="reproduce-section wrap" id="reproduce" aria-labelledby="reproduce-title"><div><span class="section-number">04 / TRY IT YOURSELF</span><h2 id="reproduce-title">The experiment<br>is the repository.</h2><p>Source, benchmark records, and verification steps are public. Start with the Rust batch experiment, then run the official conformance harness.</p><a class="button button-light" href="https://github.com/netzo92/pearl-fast-matmul">Open the repository <span aria-hidden="true">↗</span></a></div><div class="terminal"><div class="terminal-heading"><span>TERMINAL</span><button type="button" id="copy-commands">Copy commands</button></div><pre><code id="commands">git clone https://github.com/netzo92/pearl-fast-matmul.git
+    <section class="reproduce-section wrap" id="reproduce" aria-labelledby="reproduce-title"><div><span class="section-number">Reproduce</span><h2 id="reproduce-title">Run the code</h2><p>The GPU benchmark needs a Metal-capable Mac, Rust, and Swift. The verifier check downloads the pinned Pearl source.</p><a class="button button-light" href="https://github.com/netzo92/pearl-fast-matmul">GitHub repository</a></div><div class="terminal"><div class="terminal-heading"><span>Commands</span><button type="button" id="copy-commands">Copy commands</button></div><pre><code id="commands">git clone https://github.com/netzo92/pearl-fast-matmul.git
 cd pearl-fast-matmul
 
-# Check and time the batched CPU kernels
-cargo run --release -- --batch-grouping
+# GPU benchmark
+bash gpu/run_metal.sh results/metal-cached-m4.json cached
 
-# Check the pinned official CPU verifier
+# Official CPU verifier
 bash conformance/run.sh</code></pre><p class="terminal-note">See the README for prerequisites and timing scope.</p><span id="copy-status" class="sr-only" role="status"></span></div></section>
   </main>
-  <footer class="site-footer wrap"><a class="wordmark" href="#">pearl<span class="wordmark-light"> / fast matmul</span></a><p>An independent, reproducible research experiment.</p><a href="https://github.com/netzo92/pearl-fast-matmul">Source &amp; discussion <span aria-hidden="true">↗</span></a></footer>
+  <footer class="site-footer wrap"><a class="wordmark" href="#">pearl<span class="wordmark-light"> / fast matmul</span></a><p>Code, measurements, and research notes.</p><a href="https://github.com/netzo92/pearl-fast-matmul">GitHub</a></footer>
 </body>
 </html>
