@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/016-cuda-feasibility.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/017-fused-mma16-h100.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -36,7 +36,15 @@ The [earlier uncached GPU experiment](notes/011-metal-prefix-benchmark.md) was e
 
 The earlier narrow CPU controls remain faster than CPU grouping: 2.28ms direct versus 4.61ms grouped. These CPU checks ran locally; the H100 cloud run is recorded below.
 
-## CUDA result on H100
+## Fused MMA16 result on H100
+
+A custom fused direct kernel improves the local matrix-stage control from about **92 µs to 50 µs** at 2048 × 512. The grouped MMA16 path performs fewer dense tensor steps, but still takes **153–155 µs** including B setup amortized across four candidates. Without B setup, it takes about **101 µs grouped versus 46 µs direct**. There is no grouped speed advantage in these tests.
+
+All seven methods pass **44 fixtures, 183,517,184 prefix entries and 44,804 tile states per method**, including a separate check of the state-only timed path. Scalar-load and graph-staging experiments are preserved alongside the retained vector-load implementation. The temporary VM and disk were deleted; estimated compute for the session was about $1.10, excluding other charges and final billing adjustments.
+
+[Methods and results](notes/017-fused-mma16-h100.md) · [Raw samples](results/cuda-mma16-h100.json) · [CUDA code](gpu/cuda/README.md).
+
+## First CUDA result on H100
 
 The [CUDA port](gpu/cuda/README.md) runs correctly on H100, but **grouping is slower than the INT8 cuBLAS control**. At output shape 2048 × 512, including B preparation amortized across four candidates:
 
@@ -110,7 +118,7 @@ Earlier notes preserve the conclusions reached at each step and link to the curr
 
 ## Conclusion
 
-The tested H100 implementation is about 3.2× slower than the direct cuBLAS control at the largest shape. We have no demonstrated NVIDIA mining advantage or higher dollars/hour.
+The strongest tested grouped H100 implementation is about 3× slower than the fastest direct control at the largest shape. We have no demonstrated NVIDIA mining advantage or higher dollars/hour.
 
 Using [Pearl's illustrative 10% incremental-cost assumption](https://pearlresearch.ai/research/int-whitepaper), a hypothetical **complete-cost** speedup of 1.28x would leave useless mining at about 78% of the reference cost, versus 10% for adding mining to existing inference: roughly 7.8x as expensive. Our 1.28x measurement covers only the local matrix stage, so it does not establish that complete-cost ratio. The estimate gives a conditional threshold; it does not demonstrate an exploit. [Calculation and ELI5](notes/013-inference-overhead-threshold.md#conclusion-using-pearls-own-estimate).
 

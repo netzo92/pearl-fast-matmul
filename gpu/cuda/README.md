@@ -6,13 +6,19 @@ This is a feasibility benchmark. It does not mine, contact a pool, run inference
 
 ## Methods
 
-1. Direct INT8 cuBLAS strided-batched GEMM, one independent product per rank-128 chunk.
-2. Grouped INT8 cuBLAS with exact sparse residual correction. Grouped coefficients are clipped to signed INT8; all remaining signed values are added back using INT16 residuals and INT32 accumulation. There is no quantization loss.
-3. Direct INT8 cuBLAS with A packed into the grouped chunk layout. Its per-candidate packing cost is included. Ratios use the faster direct control.
+Seven paths share the same fixed-B fixtures and exact required prefix/state semantics:
 
-All methods get fixed-B reuse, the same candidates, identical chunk-product storage and identical fused prefix accumulation/tile-state reduction. Correctness mode writes every prefix and compares it with the Rust direct reference. It checks the state-only timed path separately. Timing omits full-prefix writes for every method.
+1. Direct INT8 cuBLAS strided-batched chunk products and state reduction.
+2. Grouped cuBLAS with per-candidate grouping and exact residual correction.
+3. Direct cuBLAS with per-candidate A packing.
+4. Fused direct `m16n8k16` tensor instructions, prefix accumulation and state reduction.
+5. Prepared grouping followed by fused MMA16, corrections and states.
+6. Grouping inside the shared-memory load followed by fused MMA16, corrections and states.
+7. Inline grouping with dense width forced to 128 as a padding control.
 
-The dense inner dimension is **128 on both paths**. The active grouped dimensions often round up to 128 on tensor cores. This implementation tests whether any wall-time benefit remains despite that padding and the residual correction; it does not assume the Metal speedup transfers.
+Ratios compare the faster grouped MMA16 method (5 or 6) with the fastest direct control (1, 3 or 4). The legacy grouped method and padded control remain in every report. A new graph is prepared per B job, and grouping is paid for each A candidate. Grouped coefficients outside INT8 use exact signed residuals; no contribution is dropped.
+
+The legacy cuBLAS methods use inner dimension 128 and materialize chunk products. The fused methods retain accumulators in registers. Grouped MMA16 rounds the active dimension to 16, usually 112 for these fixtures. All methods check every prefix in correctness mode and separately check the state-only timed path. Timings omit full-prefix writes for every method.
 
 ## Run
 
@@ -24,7 +30,7 @@ python3 -m venv /tmp/pearl-cuda-env
 PYTHON=/tmp/pearl-cuda-env/bin/python bash gpu/cuda/run.sh results/cuda-matrix-stage.json
 ```
 
-The runner exports all 32 cached fixtures. It checks all three GPU paths before recording timings; a mismatch aborts. Eleven rounds rotate method order and include B preparation amortized across four candidates. Rounds replay those finite fixtures. Buffers, allocations, compilation and initial fixture uploads are outside timing.
+The runner exports all 32 cached fixtures. It checks all seven GPU paths before recording timings; a mismatch aborts. Eleven rounds rotate method order and include B preparation amortized across four candidates. Rounds replay those finite fixtures. Buffers, allocations, compilation and initial fixture uploads are outside timing.
 
 For a shorter first check, prepare fixtures once and select a shape:
 
@@ -45,7 +51,9 @@ For the smaller original 12-fixture set, use `--export-metal` instead of `--expo
 
 ## Recorded H100 result
 
-On H100 80GB, the largest shape takes about **291 µs grouped versus 91 µs direct**, including B preparation amortized over four candidates. Grouping loses all eleven paired rounds in every tested case. All three paths pass the prefix/state checks. [Results and limits](../../notes/016-cuda-feasibility.md) · [Raw samples](../../results/cuda-h100.json).
+The retained vector-load implementation takes about **50 µs direct versus 153–155 µs grouped** at 2048 × 512, including B preparation amortized across four candidates. Without B preparation, it takes about 46 µs direct versus 101 µs grouped. All seven methods pass 44 fixtures, including small boundary tiles and dense nonzero A.
+
+[Latest results and iterations](../../notes/017-fused-mma16-h100.md) · [Raw MMA16 samples](../../results/cuda-mma16-h100.json) · [First CUDA experiment](../../notes/016-cuda-feasibility.md).
 
 For GCP serial collection, the startup script emits compressed chunks with a SHA256 of the original JSON. Recover them with:
 
@@ -57,6 +65,6 @@ python3 gpu/cuda/collect_serial.py serial.log report.json
 
 Reports retain every timing sample, device/runtime information and source/fixture SHA256 hashes. `wall_us_per_candidate_including_amortized_b` is the primary measurement. CUDA events report elapsed stream span, which can include host launch/copy gaps; this is not active GPU execution time.
 
-Excluded: input commitments, seed/noise generation, generation of new candidates, final keyed BLAKE3, winning proofs and verification, network acceptance, fees, inference and customer revenue. This is neither complete mining throughput nor a dollars/hour result. The baseline is cuBLAS with our state reduction, **not Pearl's fused NVIDIA kernel**. A win requires a subsequent comparison with that implementation. A loss only rejects this CUDA implementation and shape, not every possible grouping implementation.
+Excluded: input commitments, seed/noise generation, generation of new candidates, final keyed BLAKE3, winning proofs and verification, network acceptance, fees, inference and customer revenue. This is neither complete mining throughput nor a dollars/hour result. The baseline is the fastest of cuBLAS and our fused direct MMA16 kernel, **not Pearl's fused NVIDIA kernel**. A win requires a subsequent comparison with that implementation. A loss only rejects this CUDA implementation and shape, not every possible grouping implementation.
 
 References: [cuBLAS strided-batched GEMM](https://docs.nvidia.com/cuda/cublas/index.html#cublasgemmstridedbatchedex), [current scope of the M4 result](../../notes/012-cached-b-distinct-candidates.md).

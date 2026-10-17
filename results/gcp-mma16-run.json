@@ -1,0 +1,38 @@
+{
+  "machine_type": "a3-highgpu-1g",
+  "gpu_count": 1,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "provisioning_model": "SPOT",
+  "region": "us-central1",
+  "last_start_utc": "2026-10-17T08:07:05.495Z",
+  "deletion_confirmed_by_utc": "2026-10-17T08:17:33Z",
+  "max_run_duration_seconds": 1800,
+  "instance_termination_action": "DELETE",
+  "vm_deletion_confirmed": true,
+  "boot_disk_auto_delete": true,
+  "boot_disk_gb": 60,
+  "elapsed_upper_bound_seconds": 627.505,
+  "listed_spot_vm_usd_per_hour": 6.307365068,
+  "estimated_compute_usd_upper_bound": 1.0994175324987057,
+  "price_source": "https://cloud.google.com/spot-vms/pricing?hl=en",
+  "cost_scope": "Listed rate times elapsed upper bound; excludes boot disk, network, tax and billing adjustments. Not a final billing statement.",
+  "versions": [
+    {
+      "source_revision": "75c51d76960a30d26744b5e7dcc162896bcaffa8",
+      "report": "cuda-mma16-h100-initial.json",
+      "sha256": "3c2dcdd672071038661e81760697e5edd6a5670bea35de1811a8edcb89f2c2ed"
+    },
+    {
+      "source_revision": "f86e3aa89e79a7d7b0aa90e0193dbfbace58c10d",
+      "report": "cuda-mma16-h100.json",
+      "sha256": "e7289e7f5da9514f987e1686c10ad5fb7781e4fab25059272ccdd0820ebbf66b"
+    },
+    {
+      "source_revision": "b79b29d0c0d0a9dbc6f5504f2ce2c1f092f30fe2",
+      "report": "cuda-mma16-h100-staged.json",
+      "sha256": "489938334e69c67c7d35d34c0652e30ec0dffb07fba5552152cf703f82532482"
+    }
+  ],
+  "mining_submission": false,
+  "inference_api_used": false
+}
