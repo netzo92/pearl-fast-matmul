@@ -164,6 +164,12 @@ fn main() {
         ]
     );
     let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|arg| arg == "--export-metal-cached") {
+        let dir = args.get(pos + 1).expect("usage: --export-metal-cached DIR");
+        batched_grouping::export_cached_metal(std::path::Path::new(dir))
+            .expect("export cached Metal fixtures");
+        return;
+    }
     if let Some(pos) = args.iter().position(|arg| arg == "--export-metal") {
         let dir = args.get(pos + 1).expect("usage: --export-metal DIR");
         batched_grouping::export_metal(std::path::Path::new(dir)).expect("export Metal fixtures");

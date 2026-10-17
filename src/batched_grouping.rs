@@ -9,6 +9,9 @@ mod metal_fixtures;
 pub fn export_metal(dir: &std::path::Path) -> std::io::Result<()> {
     metal_fixtures::export(dir)
 }
+pub fn export_cached_metal(dir: &std::path::Path) -> std::io::Result<()> {
+    metal_fixtures::export_cached(dir)
+}
 #[path = "narrow_kernel.rs"]
 mod narrow_kernel;
 #[path = "width_stats.rs"]
@@ -56,6 +59,10 @@ fn fixture(m: usize, n: usize, id: u32, nonzero_a: bool) -> Fixture {
                 .collect()
         })
         .collect();
+    fixture_with_raw_a(m, n, id, a)
+}
+
+fn fixture_with_raw_a(m: usize, n: usize, id: u32, a: Vec<Vec<i8>>) -> Fixture {
     let b = vec![vec![0i8; K]; n];
     let key = hash(format!("pearl-batch-case-{id}").as_bytes());
     let (sb, sa) = seeds_from_roots(
