@@ -13,7 +13,7 @@ int root(std::vector<int>& parents,int x) {
     while (parents[x]!=x) { parents[x]=parents[parents[x]]; x=parents[x]; }
     return x;
 }
-Plan make_plan(const std::vector<uint32_t>& pairs,int k) {
+Plan make_plan(const std::vector<uint32_t>& pairs,int k,bool degree_anchor=false) {
     Plan p;
     p.offsets.resize((k/R)*(R+1)); p.vertices.resize(k); p.anchors.resize(k);
     for (int c=0;c<k/R;++c) {
@@ -26,9 +26,17 @@ Plan make_plan(const std::vector<uint32_t>& pairs,int k) {
             if (x!=y) parents[std::max(x,y)]=std::min(x,y);
             incident[a].push_back(s+1); incident[b].push_back(-s-1);
         }
+        // This choice depends only on the fixed B graph, so it is reusable
+        // across fresh A candidates. Ties prefer the smaller vertex index.
+        std::vector<int> best(R,-1);
+        if (degree_anchor) for (int v=0;v<R;++v) {
+            int component=root(parents,v),old=best[component];
+            if (old<0 || incident[v].size()>incident[old].size()) best[component]=v;
+        }
         int t=0;
         for (int v=0;v<R;++v) {
-            int a=root(parents,v);
+            int component=root(parents,v);
+            int a=degree_anchor ? best[component] : component;
             if (v==a) continue;
             p.vertices[c*R+t]=v; p.anchors[c*R+t]=a;
             p.offsets[c*(R+1)+t]=p.edges.size();

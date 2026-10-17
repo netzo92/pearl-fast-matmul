@@ -16,7 +16,7 @@ __device__ __forceinline__ void mma(int (&d)[4],uint32_t a0,uint32_t a1,uint32_t
 // Grouped+Inline groups A inside the shared-memory load, then fuses residual
 // corrections, all prefix accumulations and ticket-state reductions. Prepared
 // grouping uses the existing global grouping pass as an additional control.
-template<bool Grouped,bool Inline,bool Trim,bool Capture>
+template<bool Grouped,bool Inline,bool Trim,bool Capture,bool Correct=true>
 __global__ void prefix(const int8_t* a,const int8_t* packed_b,
                        const uint32_t* offsets,const int32_t* edges,
                        const uint32_t* dims,const uint32_t* global_counts,
@@ -90,7 +90,9 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
                 mma(acc[f],a0,a1,b);
             }
         }
-        if (Grouped) {
+        // Correct=false is a deliberately invalid diagnostic, never a method
+        // eligible for the reported grouped/direct performance comparison.
+        if (Grouped && Correct) {
             #pragma unroll
             for (int half=0;half<2;++half) {
                 int row=group+half*8,i=row_base+row,global_row=c*m+i;

@@ -17,9 +17,11 @@ METHODS = (
     "direct_cublas", "grouped_cublas_residual", "packed_direct_cublas",
     "direct_mma16_fused", "grouped_mma16_prepared", "grouped_mma16_inline",
     "grouped_mma16_inline_padded128",
+    "grouped_mma16_warp", "grouped_mma16_warp_degree",
+    "grouped_mma16_prepared_degree",
 )
 DIRECT_METHODS = (METHODS[0], METHODS[2], METHODS[3])
-GROUPED_METHODS = (METHODS[4], METHODS[5])
+GROUPED_METHODS = tuple(METHODS[i] for i in (4, 5, 7, 8, 9))
 EXCLUSIONS = [
     "input commitments", "seed expansion and noise generation", "candidate generation",
     "final keyed BLAKE3 hashes", "winning-proof generation and verification",
@@ -42,7 +44,7 @@ def words(root, fixture, key, dtype, shape):
     return np.memmap(path, dtype=dtype, mode="r", shape=shape)
 
 
-def plan_for(pairs):
+def plan_for(pairs, degree_anchor=False):
     """Independent host plan; its active basis must match the Rust exporter."""
     chunks, r, _ = pairs.shape
     offsets, edges, vertices, anchors, dims = [], [], [], [], []
@@ -62,9 +64,16 @@ def plan_for(pairs):
             parents[max(x, y)] = min(x, y)
             incident[a].append(s + 1)
             incident[b].append(-s - 1)
+        best = {}
+        for v in range(r):
+            component = root(v)
+            old = best.get(component)
+            if old is None or len(incident[v]) > len(incident[old]):
+                best[component] = v
         cv, ca, co = [], [], []
         for v in range(r):
-            anchor = root(v)
+            component = root(v)
+            anchor = best[component] if degree_anchor else component
             if v == anchor:
                 continue
             cv.append(v)
@@ -111,18 +120,16 @@ def states_from_prefixes(prefixes):
     return states.reshape(-1, 16)
 
 
-def validate_host(f, data, plan_checker=None, root=None):
+def grouped_reference(f, data, degree_anchor=False):
     m, n, k, r = (f[key] for key in ("m", "n", "k", "r"))
-    p = plan_for(data["pairs"])
-    for key, fixture_key in (("vertices", "vertices"), ("anchors", "anchors"), ("dims", "d")):
-        np.testing.assert_array_equal(np.array(p[key]).reshape(data[fixture_key].shape), data[fixture_key])
-    if plan_checker:
-        native = json.loads(subprocess.check_output([str(plan_checker), str(root / f["pairs"])], text=True))
-        if native != p:
-            raise AssertionError(f"{f['name']}: C++ plan differs from Python/Rust")
+    p = plan_for(data["pairs"], degree_anchor)
     a = data["a"].astype(np.int32)
     v = data["v"].astype(np.int32)
     acc = np.zeros((m, n), dtype=np.int32)
+    clipped_acc = np.zeros_like(acc)
+    clipped_prefixes = []
+    vertices = np.array(p["vertices"]).reshape(k//r, r)
+    anchors = np.array(p["anchors"]).reshape(k//r, r)
     clipped_count = 0
     for c in range(k // r):
         pairs = data["pairs"][c]
@@ -137,17 +144,38 @@ def validate_host(f, data, plan_checker=None, root=None):
         lo = np.clip(g, -128, 127)
         residual = g - lo
         clipped_count += int(np.count_nonzero(residual))
-        vertices, anchors = data["vertices"][c], data["anchors"][c]
-        b = (v[:, vertices] - v[:, anchors]).T.copy()
+        b = (v[:, vertices[c]] - v[:, anchors[c]]).T.copy()
         b[d:, :] = 0
         # Both stages use integer arithmetic, including all sparse corrections.
         delta = lo @ b + residual @ b
         np.testing.assert_array_equal(delta, a[:, c * r:(c + 1) * r] @ reconstructed_b.T)
         acc += delta
         np.testing.assert_array_equal(acc, data["prefixes"][c])
+        clipped_acc += lo @ b
+        clipped_prefixes.append(clipped_acc.copy())
+    return {"nonzero_residuals": clipped_count, "active_dimensions": p["dims"],
+            "retained_incident_edges": len(p["edges"]),
+            "clipped_only_states": states_from_prefixes(np.stack(clipped_prefixes))}
+
+
+def validate_host(f, data, plan_checker=None, root=None):
+    stats = {}
+    for degree in (False, True):
+        p = plan_for(data["pairs"], degree)
+        if not degree:
+            for key, fixture_key in (("vertices", "vertices"), ("anchors", "anchors"), ("dims", "d")):
+                np.testing.assert_array_equal(np.array(p[key]).reshape(data[fixture_key].shape), data[fixture_key])
+        if plan_checker:
+            cmd = [str(plan_checker), str(root / f["pairs"])] + (["--degree"] if degree else [])
+            native = json.loads(subprocess.check_output(cmd, text=True))
+            if native != p:
+                raise AssertionError(f"{f['name']}: C++ plan differs from independent Python plan")
+        result = grouped_reference(f, data, degree)
+        del result["clipped_only_states"]
+        stats["degree_anchor" if degree else "original_anchor"] = result
     np.testing.assert_array_equal(states_from_prefixes(data["prefixes"]), data["states"])
     return {"prefix_entries": int(data["prefixes"].size), "tile_states": int(len(data["states"])),
-            "nonzero_residuals": clipped_count, "active_dimensions": p["dims"]}
+            "anchor_checks": stats}
 
 
 class Native:
@@ -162,6 +190,7 @@ class Native:
             ("pfm_run", [ptr, integer, integer, integer], integer),
             ("pfm_read", [ptr, ptr, ptr], integer),
             ("pfm_measure", [ptr, integer, integer, ptr, ptr], integer),
+            ("pfm_profile", [ptr, integer, integer, integer, ptr, ptr], integer),
             ("pfm_device", [ptr, integer, ptr, ptr, ptr, ptr], integer),
         ):
             fn = getattr(self.lib, name)
@@ -183,8 +212,53 @@ class Native:
         self.check(self.lib.pfm_measure(ctx, method, mode, ct.byref(wall), ct.byref(stream)))
         return {"wall_us": wall.value, "cuda_event_span_us": stream.value}
 
+    def profile(self, ctx, method, mode, repeats):
+        wall, stream = ct.c_double(), ct.c_double()
+        self.check(self.lib.pfm_profile(ctx, method, mode, repeats, ct.byref(wall), ct.byref(stream)))
+        return {"wall_us": wall.value, "cuda_event_span_us": stream.value}
 
-def benchmark_family(native, candidates, loaded, rounds, warmups):
+
+def profile_family(native, ctx, candidates, loaded, rounds, repeats):
+    methods = (3, 4, 7, 8, 9)
+    variants = [(method, mode) for method in methods for mode in ((0,) if method == 3 else range(4))]
+    stage_names = ("complete_candidate_batch", "grouping_only", "fused_with_correction", "fused_without_correction_invalid")
+    clipped_states = {degree: grouped_reference(candidates[0], loaded[0], degree)["clipped_only_states"] for degree in (False, True)}
+    checks = []
+    for method, mode in variants:
+        native.check(native.lib.pfm_prepare(ctx, method))
+        native.profile(ctx, method, mode, 1)
+        if mode != 1:
+            expected = loaded[-1]["states"] if mode == 0 else loaded[0]["states"] if mode == 2 else clipped_states[method in (8, 9)]
+            actual = np.empty_like(expected)
+            native.check(native.lib.pfm_read(ctx, None, actual.ctypes.data))
+            np.testing.assert_array_equal(actual, expected, err_msg=f"profile state check {METHODS[method]} mode {mode}")
+            checks.append({"method": METHODS[method], "stage": stage_names[mode], "state_reference_matched": True,
+                           "reference": "clipped-only diagnostic, invalid mining result" if mode == 3 else "exact Rust fixture"})
+    raw = []
+    samples = {(method, mode): [] for method, mode in variants}
+    for round_id in range(rounds):
+        for offset in range(len(variants)):
+            method, mode = variants[(round_id + offset) % len(variants)]
+            native.check(native.lib.pfm_prepare(ctx, method))
+            measured = native.profile(ctx, method, mode, repeats)
+            denominator = repeats * len(candidates)
+            normalized = measured["cuda_event_span_us"] / denominator
+            samples[(method, mode)].append(normalized)
+            raw.append({"round": round_id, "order": offset, "method": METHODS[method], "stage": stage_names[mode],
+                        "graph_repeats": repeats, "candidate_slots_per_graph": len(candidates),
+                        "kernel_nodes_per_graph": len(candidates)*(2 if mode == 0 and method != 3 else 1), **measured,
+                        "cuda_event_us_per_candidate": normalized, "wall_us_per_candidate": measured["wall_us"] / denominator,
+                        "complete_valid_candidate_path": mode == 0})
+    medians = {METHODS[method]: {stage_names[mode]: statistics.median(samples[(method, mode)])
+                for m, mode in variants if m == method} for method in methods}
+    return {"median_cuda_event_us_per_candidate": medians, "raw_samples": raw, "state_checks": checks,
+            "graph_repeats": repeats, "rounds": rounds,
+            "scope": "Diagnostic finite-fixture CUDA graph replay. Complete batches use each distinct prepared A; fused-only controls repeat candidate 0. B preparation, graph capture/instantiation/warmup and fresh-input production are excluded.",
+            "correction_control": "Omitting corrections is intentionally invalid. Compiler register usage and occupancy may change, so time differences are not an additive decomposition of kernel cost.",
+            "baseline_scope": "Complete graph replay compares direct MMA16 with prepared grouped variants. The separate primary benchmark also includes both cuBLAS controls; no official Pearl kernel is measured."}
+
+
+def benchmark_family(native, candidates, loaded, rounds, warmups, profile_stages=False, profile_repeats=32):
     f = candidates[0]
     inputs = np.stack([data["a"] for data in loaded])
     v = np.ascontiguousarray(loaded[0]["v"])
@@ -229,7 +303,7 @@ def benchmark_family(native, candidates, loaded, rounds, warmups):
         candidate_medians = {name: statistics.median(x["candidate_batch"]["wall_us"] / len(inputs) for x in raw if x["method"] == name) for name in METHODS}
         prep_medians = {name: statistics.median(x["b_preparation"]["wall_us"] for x in raw if x["method"] == name) for name in METHODS}
         reuse_models = {str(reuse): {name: statistics.median((x["candidate_batch"]["wall_us"] / len(inputs)) + x["b_preparation"]["wall_us"] / reuse for x in raw if x["method"] == name) for name in METHODS} for reuse in (4, 64, 1024)}
-        return {"m": f["m"], "n": f["n"], "job_key_id": f["id"],
+        result = {"m": f["m"], "n": f["n"], "job_key_id": f["id"],
                 "candidate_count": len(inputs), "candidate_names": [c["name"] for c in candidates],
                 "median_wall_us_per_candidate": medians, "faster_direct_control": baseline,
                 "selected_grouped_method": grouped,
@@ -240,6 +314,9 @@ def benchmark_family(native, candidates, loaded, rounds, warmups):
                 "modeled_amortized_wall_us_by_reuse": reuse_models,
                 "reuse_model_scope": "Costs recombined from measured four-candidate batches, not executions of 64 or 1024 distinct candidates.", "grouped_paired_round_wins": paired_wins,
                 "rounds": rounds, "raw_samples": raw}
+        if profile_stages:
+            result["stage_profile"] = profile_family(native, ctx, candidates, loaded, rounds, profile_repeats)
+        return result
     finally:
         native.lib.pfm_destroy(ctx)
 
@@ -254,9 +331,13 @@ def main():
     parser.add_argument("--warmups", type=int, default=3)
     parser.add_argument("--validate-only", action="store_true", help="Host arithmetic checks; no CUDA required")
     parser.add_argument("--plan-checker", type=Path, help="Optional compiled C++ host plan checker")
+    parser.add_argument("--profile-stages", action="store_true", help="Add diagnostic CUDA graph stage timings; requires a GPU")
+    parser.add_argument("--profile-repeats", type=int, default=32, help="Graph replays per profiling sample")
     args = parser.parse_args()
     if args.rounds < 3 or args.warmups < 1:
         parser.error("at least 3 rounds and 1 warmup required")
+    if not 1 <= args.profile_repeats <= 1024 or (args.profile_stages and args.validate_only):
+        parser.error("profile repeats must be 1..1024; profiling cannot run in host-only validation mode")
     root = args.fixtures.resolve()
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
@@ -293,11 +374,11 @@ def main():
         if len({f["seed_a"] for f in candidates}) != len(candidates):
             raise ValueError("A seeds must differ")
         if native:
-            result = benchmark_family(native, candidates, loaded, args.rounds, args.warmups)
+            result = benchmark_family(native, candidates, loaded, args.rounds, args.warmups, args.profile_stages, args.profile_repeats)
             reports.append(result)
             print(f"PASS {key}: grouped / faster direct throughput ratio {result['grouped_speedup_vs_faster_direct']:.4f}x", flush=True)
     report = {
-        "schema_version": 2, "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "schema_version": 3, "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "status": "host_arithmetic_validated" if native is None else "cuda_matrix_stage_validated_and_benchmarked",
         "device": device, "python": sys.version, "numpy": np.__version__, "platform": platform.platform(),
         "manifest_sha256": digest(manifest_path),

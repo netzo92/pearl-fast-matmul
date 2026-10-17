@@ -12,7 +12,8 @@ template<class T> void array(const std::vector<T>& v) {
 }
 int main(int argc,char** argv) {
     try {
-        if (argc!=2) throw std::runtime_error("usage: plan-check PAIRS_U32_LE");
+        if (argc<2 || argc>3 || (argc==3 && std::string(argv[2])!="--degree"))
+            throw std::runtime_error("usage: plan-check PAIRS_U32_LE [--degree]");
         std::ifstream input(argv[1],std::ios::binary);
         std::vector<uint32_t> pairs(2*2048);
         for (auto& word:pairs) {
@@ -22,7 +23,7 @@ int main(int argc,char** argv) {
             if (word>=pfm::R) throw std::runtime_error("vertex out of bounds");
         }
         if (input.peek()!=std::char_traits<char>::eof()) throw std::runtime_error("trailing input");
-        auto p=pfm::make_plan(pairs,2048);
+        auto p=pfm::make_plan(pairs,2048,argc==3);
         std::cout << "{\"offsets\":"; array(p.offsets);
         std::cout << ",\"edges\":"; array(p.edges);
         std::cout << ",\"vertices\":"; array(p.vertices);
