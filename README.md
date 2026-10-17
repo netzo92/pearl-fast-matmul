@@ -2,7 +2,7 @@
 
 Exact signed-noise grouping experiments for Pearl's integer proof of useful work.
 
-**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/015-measuring-inference-overhead.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
+**[Research site](https://netzo92.github.io/pearl-fast-matmul/) · [Latest research note](notes/016-cuda-feasibility.md) · [Raw benchmark samples](results/benchmarks.json) · [Official conformance report](conformance/report.json)**
 
 ## What works
 
@@ -35,6 +35,12 @@ bash gpu/run_metal.sh results/metal-cached-m4.json cached
 The [earlier uncached GPU experiment](notes/011-metal-prefix-benchmark.md) was effectively tied after preparation. Its benchmark remains available with `bash gpu/run_metal.sh`.
 
 The earlier narrow CPU controls remain faster than CPU grouping: 2.28ms direct versus 4.61ms grouped. No cloud resources have been created.
+
+## CUDA feasibility version
+
+The [CUDA benchmark](gpu/cuda/README.md) compiles for H100/SM90 and has passed Linux host conformance. All 32 cached fixtures pass host checks for **178,257,920 prefix entries and 43,520 tile states**, including exact correction of coefficients outside INT8. It compares grouped cuBLAS with two direct INT8 cuBLAS controls, including a packing control, and checks both full prefixes and the state-only timed path when run on a GPU.
+
+**No NVIDIA execution or timing result is recorded yet.** GCP quota for one Spot H100 has been approved for a short run. This is a matrix-stage experiment, not a complete miner or a profit measurement. [Method and checks](notes/016-cuda-feasibility.md) · [Host report](results/cuda-cached-host-conformance.json).
 
 ## CPU results
 

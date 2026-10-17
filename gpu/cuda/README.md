@@ -16,7 +16,7 @@ The dense inner dimension is **128 on both paths**. The active grouped dimension
 
 ## Run
 
-Requires Linux, an NVIDIA GPU, CUDA 12.8+ development toolkit with cuBLAS, a C++ compiler, Rust/Cargo, Python 3.10+ and NumPy. The default target is SM90 (H100/H200); `CUDA_ARCH=sm_80`, `sm_86` or `sm_89` can build the standalone experiment for other cards. That does not establish support for Pearl's official miner on those cards.
+Requires Linux, an NVIDIA GPU, CUDA 12.8+ development toolkit with cuBLAS, a C++ compiler, Rust/Cargo, Python 3.11+ and NumPy. The default target is SM90 (H100/H200); `CUDA_ARCH=sm_80`, `sm_86` or `sm_89` can build the standalone experiment for other cards. That does not establish support for Pearl's official miner on those cards.
 
 ```sh
 python3 -m venv /tmp/pearl-cuda-env
