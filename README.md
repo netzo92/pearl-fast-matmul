@@ -93,6 +93,10 @@ python3 -m http.server 8000 --directory docs
 
 Earlier notes preserve the conclusions reached at each step and link to the current result. This repository was extracted from [netzo92/math](https://github.com/netzo92/math).
 
+## Conclusion
+
+Using [Pearl's illustrative 10% incremental-cost assumption](https://pearlresearch.ai/research/int-whitepaper), a hypothetical **complete-cost** speedup of 1.28x would leave useless mining at about 78% of the reference cost, versus 10% for adding mining to existing inference: roughly 7.8x as expensive. Our 1.28x measurement covers only the local matrix stage, so it does not establish that complete-cost ratio. The estimate gives a conditional threshold; it does not demonstrate an exploit. [Calculation and ELI5](notes/013-inference-overhead-threshold.md#conclusion-using-pearls-own-estimate).
+
 ## Next question
 
 Can complete grouped useless mining beat the **incremental cost of adding mining to useful inference**, per expected accepted reward, on the same hardware? No predetermined speedup factor is required. The current matrix-stage measurements do not measure that incremental cost. [Cost model and next measurement](notes/013-inference-overhead-threshold.md).
