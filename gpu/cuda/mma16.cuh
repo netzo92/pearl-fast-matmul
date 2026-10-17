@@ -13,6 +13,15 @@ __device__ __forceinline__ void mma(int (&d)[4],uint32_t a0,uint32_t a1,uint32_t
         : "r"(a0), "r"(a1), "r"(b));
 }
 
+template<int Width>
+__device__ __forceinline__ void load_b(const int8_t* src,int8_t* dst,int tid,int col_base,int c,int n) {
+    for (int x=tid;x<Cols*(Width/16);x+=128) {
+        int col=x/(Width/16),t=(x%(Width/16))*16,j=col_base+col;
+        uint4 value=j<n ? *reinterpret_cast<const uint4*>(&src[(c*n+j)*Rank+t]) : make_uint4(0,0,0,0);
+        *reinterpret_cast<uint4*>(&dst[col*Pitch+t])=value;
+    }
+}
+
 // Grouped+Inline groups A inside the shared-memory load, then fuses residual
 // corrections, all prefix accumulations and ticket-state reductions. Prepared
 // grouping uses the existing global grouping pass as an additional control.
@@ -26,6 +35,8 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
     __shared__ __align__(16) int8_t sb[Cols*Pitch];
     __shared__ __align__(16) int8_t raw[Rows*Pitch];
     __shared__ unsigned int counts[Rows];
+    __shared__ uint32_t local_offsets[Rank+1];
+    __shared__ int32_t local_edges[2*Rank];
     __shared__ uint8_t indices[Rows*Rank];
     __shared__ int16_t residuals[Rows*Rank];
     int tid=threadIdx.x,lane=tid%32,warp=tid/32;
@@ -41,7 +52,11 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
     }
     int acc[4][4] = {};
     for (int c=0;c<k/Rank;++c) {
+        int width=Grouped && Trim ? ((int(dims[c])+15)/16)*16 : Rank;
         if (Grouped && Inline) {
+            uint32_t base=offsets[c*(Rank+1)],end=offsets[c*(Rank+1)+Rank];
+            for (int t=tid;t<=Rank;t+=128) local_offsets[t]=offsets[c*(Rank+1)+t]-base;
+            for (int t=tid;t<2*Rank;t+=128) local_edges[t]=(base+t<end) ? edges[base+t] : 0;
             if (tid<Rows) counts[tid]=0;
             for (int x=tid;x<Rows*(Rank/16);x+=128) {
                 int row=x/(Rank/16),t=(x%(Rank/16))*16,i=row_base+row;
@@ -52,8 +67,8 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
             for (int x=tid;x<Rows*Rank;x+=128) {
                 int row=x/Rank,t=x%Rank,sum=0;
                 if (t<int(dims[c])) {
-                    for (uint32_t p=offsets[c*(Rank+1)+t];p<offsets[c*(Rank+1)+t+1];++p) {
-                        int edge=edges[p],s=(edge>0?edge:-edge)-1;
+                    for (uint32_t p=local_offsets[t];p<local_offsets[t+1];++p) {
+                        int edge=local_edges[p],s=(edge>0?edge:-edge)-1;
                         int value=raw[row*Pitch+s]; sum+=edge>0?value:-value;
                     }
                 }
@@ -73,13 +88,11 @@ __global__ void prefix(const int8_t* a,const int8_t* packed_b,
                 *reinterpret_cast<uint4*>(&sa[row*Pitch+t])=value;
             }
         }
-        for (int x=tid;x<Cols*(Rank/16);x+=128) {
-            int col=x/(Rank/16),t=(x%(Rank/16))*16,j=col_base+col;
-            uint4 value=j<n ? *reinterpret_cast<const uint4*>(&packed_b[(c*n+j)*Rank+t]) : make_uint4(0,0,0,0);
-            *reinterpret_cast<uint4*>(&sb[col*Pitch+t])=value;
-        }
+        // Current fixtures pad to 112 or 128. Other widths retain safe 128-byte
+        // copies, while the MMA loop still honors their actual padded width.
+        if (Grouped && Trim && width==112) load_b<112>(packed_b,sb,tid,col_base,c,n);
+        else load_b<128>(packed_b,sb,tid,col_base,c,n);
         __syncthreads();
-        int width=Grouped && Trim ? ((int(dims[c])+15)/16)*16 : Rank;
         for (int t=0;t<width;t+=16) {
             int kt=t+quad*4;
             uint32_t a0=*reinterpret_cast<const uint32_t*>(&sa[group*Pitch+kt]);
